@@ -763,148 +763,34 @@ const handleLineChange = async (lineIdx, field, value, deviceIdx = null, isBlur 
 
     // Perform validation only onBlur or Enter
     if (isBlur && value.trim()) {
-      const trimmedInput = value.trim();
-      console.log('Validating Device ID:', trimmedInput, 'Line:', lineIdx, 'DeviceIdx:', deviceIdx);
+      const trimmed = value.trim();
 
-      // Check if device ID is already sold
-      const { data: soldData, error: soldError } = await supabase
-        .from('dynamic_sales')
-        .select('device_id')
-        .eq('device_id', trimmedInput)
-        .eq('store_id', storeId)
-        .single();
-      if (soldError && soldError.code !== 'PGRST116') {
-        console.error('Error checking sold status:', soldError);
-        toast.error('Failed to validate Product ID');
-        setLines((ls) => {
-          const next = [...ls];
-          next[lineIdx].deviceIds[deviceIdx] = '';
-          next[lineIdx].deviceSizes[deviceIdx] = '';
-          return next;
-        });
-        return;
-      }
-      if (soldData) {
-        console.log('Device ID is sold:', trimmedInput);
-        toast.error(`Product ID "${trimmedInput}" has already been sold`);
-        setLines((ls) => {
-          const next = [...ls];
-          next[lineIdx].deviceIds[deviceIdx] = '';
-          next[lineIdx].deviceSizes[deviceIdx] = '';
-          return next;
-        });
-        return;
-      }
+      // Prevent double-click or double-blur issues
+      if (window.isValidatingDevice) return;
+      window.isValidatingDevice = true;
 
-      // Query dynamic_product for matching device ID
-      const { data: productData, error } = await supabase
-        .from('dynamic_product')
-        .select('id, name, selling_price, dynamic_product_imeis, device_size')
-        .eq('store_id', storeId)
-        .ilike('dynamic_product_imeis', `%${trimmedInput}%`)
-        .limit(1)
-        .single();
+      try {
+        const result = await validateAndFetchDevice(trimmed, storeId);
 
-      setLines((ls) => {
-        const next = [...ls];
-        if (error || !productData) {
-          console.error('Supabase error for Device ID:', error, 'Input:', trimmedInput);
-          toast.error(`Product ID "${trimmedInput}" not found`);
-          next[lineIdx].deviceIds[deviceIdx] = trimmedInput;
-          next[lineIdx].deviceSizes[deviceIdx] = '';
-          return next;
-        }
-
-        console.log('Found Product for ID:', productData);
-
-        const deviceIds = productData.dynamic_product_imeis ? productData.dynamic_product_imeis.split(',').map(id => id.trim()).filter(id => id) : [];
-        const deviceSizes = productData.device_size ? productData.device_size.split(',').map(size => size.trim()).filter(size => size) : [];
-        const idIndex = deviceIds.indexOf(trimmedInput);
-
-        const existingLineIdx = next.findIndex(line => {
-          const product = products.find(p => p.id === line.dynamic_product_id);
-          return product && product.name === productData.name;
-        });
-
-        const currentLineProduct = next[lineIdx].dynamic_product_id ? products.find(p => p.id === next[lineIdx].dynamic_product_id) : null;
-        const isCurrentLineMatching = currentLineProduct && currentLineProduct.name === productData.name;
-
-        if (existingLineIdx !== -1 && existingLineIdx !== lineIdx) {
-          if (next[existingLineIdx].deviceIds.some(id => id.trim().toLowerCase() === trimmedInput.toLowerCase())) {
-            toast.error(`Product ID "${trimmedInput}" already exists in this product`);
+        if (!result.success) {
+          toast.error(result.error);
+          setLines(prev => {
+            const next = [...prev];
             next[lineIdx].deviceIds[deviceIdx] = '';
+            next[lineIdx].deviceSizes[deviceIdx] = '';
             return next;
-          }
-          next[existingLineIdx].deviceIds.push(trimmedInput);
-          next[existingLineIdx].deviceSizes.push(idIndex !== -1 ? deviceSizes[idIndex] || '' : '');
-          if (!next[existingLineIdx].isQuantityManual) {
-            next[existingLineIdx].quantity = next[existingLineIdx].deviceIds.filter(id => id.trim()).length || 1;
-          }
-          next[lineIdx].deviceIds[deviceIdx] = '';
-          console.log('Appended to Existing Line:', { existingLineIdx, deviceIds: next[existingLineIdx].deviceIds });
-          checkSoldDevices(deviceIds, productData.id, existingLineIdx);
-        } else if (isCurrentLineMatching || !next[lineIdx].dynamic_product_id) {
-          if (next[lineIdx].deviceIds.some((id, idx) => idx !== deviceIdx && id.trim().toLowerCase() === trimmedInput.toLowerCase())) {
-            toast.error(`Product ID "${trimmedInput}" already exists in this line`);
-            next[lineIdx].deviceIds[deviceIdx] = '';
-            return next;
-          }
-          next[lineIdx].dynamic_product_id = Number(productData.id);
-          next[lineIdx].unit_price = Number(productData.selling_price);
-          next[lineIdx].deviceIds[deviceIdx] = trimmedInput;
-          next[lineIdx].deviceSizes[deviceIdx] = idIndex !== -1 ? deviceSizes[idIndex] || '' : '';
-          if (!next[lineIdx].isQuantityManual) {
-            next[lineIdx].quantity = next[lineIdx].deviceIds.filter(id => id.trim()).length || 1;
-          }
-          console.log('Updated Current Line:', { lineIdx, deviceIds: next[lineIdx].deviceIds });
-          checkSoldDevices(deviceIds, productData.id, lineIdx);
-          return next;
+          });
         } else {
-          if (next.some(line => line.deviceIds.some(id => id.trim().toLowerCase() === trimmedInput.toLowerCase()))) {
-            toast.error(`Product ID "${trimmedInput}" already exists in another product`);
-            next[lineIdx].deviceIds[deviceIdx] = '';
-            return next;
-          }
-          const newLine = {
-            dynamic_product_id: Number(productData.id),
-            quantity: 1,
-            unit_price: Number(productData.selling_price),
-            deviceIds: [trimmedInput],
-            deviceSizes: [idIndex !== -1 ? deviceSizes[idIndex] || '' : ''],
-            isQuantityManual: false,
-          };
-          next.push(newLine);
-          next[lineIdx].deviceIds[deviceIdx] = '';
-          console.log('Added New Line:', { newLineIdx: next.length - 1, deviceIds: newLine.deviceIds });
-          checkSoldDevices(deviceIds, productData.id, next.length - 1);
+          const { product, deviceSize } = result;
+          updateFormWithDevice(product, trimmed, deviceSize, 'add', lineIdx, deviceIdx);
+          toast.success(`${product.name} added`);
         }
-
-        // Cleanup: Clear or remove original row
-        console.log('Before cleanup:', { lineIdx, dynamic_product_id: next[lineIdx].dynamic_product_id, deviceIds: next[lineIdx].deviceIds });
-        if (next[lineIdx].dynamic_product_id) {
-          next[lineIdx].deviceIds = next[lineIdx].deviceIds.map((id, idx) => (idx === deviceIdx ? '' : id));
-          next[lineIdx].deviceSizes = next[lineIdx].deviceSizes.map((size, idx) => (idx === deviceIdx ? '' : size));
-          if (!next[lineIdx].isQuantityManual) {
-            next[lineIdx].quantity = next[lineIdx].deviceIds.filter(id => id.trim()).length || 1;
-          }
-        } else if (next.length > 1 && next[lineIdx].deviceIds.every(id => !id.trim())) {
-          next.splice(lineIdx, 1);
-          console.log('Removed empty row:', { lineIdx });
-        } else if (next.length === 1 && next[0].deviceIds.every(id => !id.trim())) {
-          next[0] = {
-            dynamic_product_id: null,
-            quantity: 1,
-            unit_price: 0,
-            deviceIds: [''],
-            deviceSizes: [''],
-            isQuantityManual: false,
-          };
-          console.log('Reset only row:', { lineIdx });
-        }
-        console.log('After cleanup:', { lineIdx, dynamic_product_id: next[lineIdx]?.dynamic_product_id, deviceIds: next[lineIdx]?.deviceIds });
-
-        return next;
-      });
+      } catch (err) {
+        console.error('Validation error:', err);
+        toast.error('Something went wrong');
+      } finally {
+        window.isValidatingDevice = false;
+      }
     }
   } else {
     setLines((ls) => {
@@ -1610,6 +1496,7 @@ const saveEdit = async () => {
         totalsData={totalsData}
         paginatedTotals={paginatedTotals}
         openDetailModal={openDetailModal}
+        storeId={storeId}
         formatCurrency={(v) => formatCurrency(v)}
         onEdit={(s) => {
           setEditing(s.id);

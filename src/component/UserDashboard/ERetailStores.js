@@ -23,10 +23,11 @@ import DynamicReturnedItems from '../VariexContents/DynamicReturnedItems';
 import GadgetsUnpaidSupplies from '../UserDashboard/GadgetsUnpaidSupplies';
 import DynamicSuppliersTracker from '../Ops/DynamicSuppliersTracker';
 import DashboardAccess from '../Ops/DashboardAccess';
-import GadgetsDynamicProducts from './GadgetsDynamicProducts';
+//import GadgetsDynamicProducts from './GadgetsDynamicProducts';
 import VsalesSummary from '../Ops/VsalesSummary';
 import ReceiptQRCode from '../VariexContents/ReceiptQRCode';
 import StockTransfer from './StockTransfer'
+import DynamicProducts from '../products/DynamicProducts'
 
 
 
@@ -45,7 +46,7 @@ const tools = [
     label: 'Products & Pricing Tracker',
     icon: <FaBoxes className="text-2xl sm:text-5xl text-indigo-600 dark:text-indigo-400" />,
     desc: 'Add and manage your store’s products, prices, and stock here',
-    component: <GadgetsDynamicProducts />,
+    component: <DynamicProducts />,
     isFreemium: true,
   },
 

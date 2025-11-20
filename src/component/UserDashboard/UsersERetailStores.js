@@ -14,16 +14,18 @@ import {
   FaLock,
 } from 'react-icons/fa';
 import DynamicInventory from '../DynamicSales/DynamicInventory';
-import AttendantsDynamicSales from '../UserDashboard/AttendantsDynamicSales';
+//import AttendantsDynamicSales from '../UserDashboard/AttendantsDynamicSales';
 import ExpenseTracker from './ExpenseTracker';
 import DebtTracker from './DebtTracker';
 import AttendantsUnpaidSupplies from './AttendantsUnpaidSupplies';
-import UserGadgetsDynamicProducts from './UserGadgetsDynamicProducts';
+//import UserGadgetsDynamicProducts from './UserGadgetsDynamicProducts';
 import DynamicReceipts from '../VariexContents/DynamicReceipts';
 import DynamicReturnedItems from '../VariexContents/DynamicReturnedItems';
 import DynamicSuppliersTracker from '../Ops/DynamicSuppliersTracker';
 import VsalesSummary from '../Ops/VsalesSummary';
 import StockTransfer from './StockTransfer'
+import DeviceDynamicSales from '../DynamicSales/DeviceDynamicSales';
+import DynamicProducts from '../products/DynamicProducts'
 //import Financials from './Financials';
 
 const tools = [
@@ -32,7 +34,7 @@ const tools = [
     label: 'Sales Tracker',
     icon: <FaChartLine className="text-2xl sm:text-5xl text-indigo-600" />,
     desc: 'Add your sales and see how your business is doing',
-    component: <AttendantsDynamicSales />,
+    component: <DeviceDynamicSales />,
     isFreemium: true,
   },
   {
@@ -40,7 +42,7 @@ const tools = [
     label: 'Products & Pricing Tracker',
     icon: <FaBoxes className="text-2xl sm:text-5xl text-indigo-600" />,
     desc: 'Add and manage your store’s products, prices, and stock here',
-    component: <UserGadgetsDynamicProducts />,
+    component: <DynamicProducts />,
     isFreemium: true,
   },
 

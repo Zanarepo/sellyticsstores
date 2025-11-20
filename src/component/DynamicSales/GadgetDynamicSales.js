@@ -1565,7 +1565,7 @@ useEffect(() => {
                     <button
                       type="button"
                       onClick={() => deleteSale(s)}
-                      className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      className="p-2 text-red-600 rounded-lg hover:bg-red-100"
                       title="Delete sale"
                     >
                       <FaTrashAlt />

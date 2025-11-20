@@ -34,6 +34,7 @@ import ReceiptQRCodeWrapper from "./component/VariexContents/ReceiptQRCodeWrappe
 import ReceiptModules from "./component/Services/ReceiptModules";
 import PricingFeatures from "./component/Payments/PricingFeatures";
 import ShareholderModule from "./component/Shareholders";
+import DynamicProducts from "./component/products/DynamicProducts";
 
 
 const App = () => {
@@ -88,6 +89,7 @@ const App = () => {
         <Route path="/receipt/:receiptId" element={<ReceiptQRCodeWrapper />} />
         <Route path="/upgrade" element={<PricingFeatures/>} />
         <Route path="/shareholders" element={<ShareholderModule/>} />
+        <Route path="/products" element={<DynamicProducts/>} />
         
         </Routes>
       </div>

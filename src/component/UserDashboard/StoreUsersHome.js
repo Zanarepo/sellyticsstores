@@ -13,17 +13,19 @@ import {
   FaUserShield,
   FaMoneyBillWave,
 } from 'react-icons/fa';
+import { Warehouse} from "lucide-react";
 
 import StoreUsersTour from './StoreUsersTour';
 import WhatsapUsers from './WhatsapUsers';
 import StoreUserProfile from './StoreUsersProfile';
 import Colleagues from './Colleagues';
-import Notifications from './Notifications';
+
 import StoreUsersVariex from './StoreUsersVariex';
-import UsersERetailStores from './UsersERetailStores';
 import AIpowerInsights from './AIpowerInsights';
 import AdminOps from './AdminOps';
 import Financials from '../Ops/Financials'
+import AlertDashboard from '../Sellytics/StoreSettings/AlertDashboard'
+import WarehouseHub   from '../Sellytics/Hub/WarehouseHub';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Fix Scan');
@@ -60,16 +62,11 @@ const Dashboard = () => {
             <AIpowerInsights />
           </div>
         );
-      case 'Flex Scan':
-        return (
-          <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
-            <StoreUsersVariex />
-          </div>
-        );
+      
       case 'Fix Scan':
         return (
           <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
-            <UsersERetailStores />
+            <StoreUsersVariex />
           </div>
         );
       case 'Financials':
@@ -84,6 +81,22 @@ const Dashboard = () => {
             <AdminOps />
           </div>
         );
+
+         case 'Warehouse':
+        return (
+          <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+            <WarehouseHub />
+          </div>
+        );
+        
+
+ case 'Store Settings':
+        return (
+          <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+            <AlertDashboard />
+          </div>
+        );
+        
       case 'Profile':
         return (
           <div className="w-full bg-white dark:bg-gray-700 rounded-lg shadow p-4">
@@ -96,12 +109,7 @@ const Dashboard = () => {
             <Colleagues />
           </div>
         );
-      case 'Notifications':
-        return (
-          <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
-            <Notifications />
-          </div>
-        );
+     
       default:
         return (
           <div className="w-full bg-white dark:bg-gray-900 rounded-lg shadow p-4">
@@ -128,8 +136,9 @@ const Dashboard = () => {
     { name: 'Fix Scan', icon: FaQrcode, aria: 'Fix Scan: Fixed barcode scanning', dataTour: 'fix-scan' },
     { name: 'AI Insights', icon: FaRobot, aria: 'AI Insights: Access AI-powered insights', dataTour: 'ai-insights' },
     { name: 'Admin Ops', icon: FaUserShield, aria: 'Admin Operations: Manage store operations', dataTour: 'admin-ops' },
+    { name: 'Warehouse', icon: Warehouse, aria: 'Admin Operations: Manage store operations', dataTour: 'admin-ops' },
     { name: 'Financials', icon: FaMoneyBillWave, aria: 'Finances: See all your financial records', dataTour: 'finance' },
-    { name: 'Notifications', icon: FaBell, aria: 'Notifications: Stay updated with store-related notifications', dataTour: 'notifications' },
+    { name: 'Store Settings', icon: FaBell, aria: 'Notifications: Stay updated with store-related notifications', dataTour: 'notifications' },
     { name: 'Colleagues', icon: FaIdBadge, aria: 'Colleagues: Manage your colleagues', dataTour: 'colleagues' },
     { name: 'Profile', icon: FaUser, aria: 'Profile: View and edit your profile', dataTour: 'profile' },
   ];

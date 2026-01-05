@@ -220,7 +220,7 @@ export default function InventoryManager() {
 
       {/* Table */}
       <div className="w-full overflow-x-auto dark:bg-gray-800 dark:text-white">
-  <table className="min-w-full table-auto table-fixed border-collapse">
+  <table className="min-w-full table-fixed border-collapse">
     <thead className="bg-gray-200 text-indigo-500 dark:bg-gray-800 dark:text-indigo-600">
       <tr>
         {['ID', 'Item', 'Avail.', 'Sold', 'Restock', 'Actions'].map((h, i) => (

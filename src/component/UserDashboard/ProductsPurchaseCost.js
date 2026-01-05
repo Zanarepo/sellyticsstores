@@ -319,7 +319,7 @@ export default function ProductCostsDashboard() {
 
       <tfoot className="bg-white dark:bg-gray-900">
   <tr>
-    <td colSpan={3} className="px-6 py-4 font-medium dark:text-white dark:bg-gray-900 dark:text-white">
+    <td colSpan={3} className="px-6 py-4 font-medium dark:bg-gray-900 dark:text-white">
       <div className="flex flex-row items-center justify-center space-x-4">
         
         {/* Prev Button */}

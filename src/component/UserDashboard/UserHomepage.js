@@ -5,7 +5,7 @@ import {
   FaBars,
   FaTimes,
   FaQrcode,
-  FaBell,
+
   FaUsersCog,
   FaCrown,
   FaHome,
@@ -13,17 +13,20 @@ import {
   FaUserShield,
   FaMoneyBillWave,
 } from 'react-icons/fa';
+import { Warehouse} from "lucide-react";
+
 import UserOnboardingTour from './UserOnboardingTour';
 
-import Profile from './Profile';
+//import Profile from './Profile';
 import Variex from './Variex';
-
+import StoreOwnerDashboard from '../Sellytics/Profile/StoreOwnerDashboard'
 import Notifications from './Notifications';
 import PricingFeatures from '../Payments/PricingFeatures';
 import ERetailStores from './ERetailStores';
 import AIpowerInsights from './AIpowerInsights';
 import AdminOps from './AdminOps';
 import Financials from '../UserDashboard/Financials';
+import WarehouseHub   from '../Sellytics/Hub/WarehouseHub';
 import AlertDashboard from './AlertDashboard'
 
 
@@ -106,7 +109,12 @@ useEffect(() => {
             <Financials />
           </div>
         );
-
+  case 'Warehouse':
+        return (
+          <div className="w-full bg-white dark:bg-gray-900 p-4">
+            <WarehouseHub />
+          </div>
+        );
 
         case 'Store Settings':
           return (
@@ -125,7 +133,7 @@ useEffect(() => {
         case 'Profile':
           return (
             <div className="w-full bg-white dark:bg-gray-900 p-4">
-              <Profile />
+              <StoreOwnerDashboard/>
             </div>
           );
 
@@ -156,9 +164,10 @@ useEffect(() => {
     { name: 'Fix Scan', icon: FaQrcode, aria: 'Fix Scan: View and edit your profile' },
     { name: 'AI Insights', icon: FaRobot, aria: 'AI Insights: Explore AI-driven insights for your store' },
     { name: 'Financials', icon: FaMoneyBillWave, aria: 'Financials: View and edit your financial data' },
+      { name: 'Warehouse', icon: Warehouse, aria: 'Manage your Warehouse Inventory here' },
     { name: 'Admin Ops', icon: FaUserShield, aria: 'Admin Ops: Manage store operations like clocking, tasks, and schedules' },
     { name: 'Store Settings', icon: FaUsersCog, aria: 'Manage all your activities and alert here' },
-    { name: 'Notifications', icon: FaBell, aria: 'Notifications: Stay updated with store-related notifications' },
+   // { name: 'Notifications', icon: FaBell, aria: 'Notifications: Stay updated with store-related notifications' },
     { name: 'Upgrade', icon: FaCrown, aria: 'Upgrade: Upgrade your plan for more features' },
     { name: 'Profile', icon: FaUser, aria: 'Profile: View and edit your profile' },
   

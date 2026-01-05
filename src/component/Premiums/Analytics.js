@@ -15,7 +15,7 @@ export default function AttendantsTable() {
 
   const ownerId = Number(localStorage.getItem('owner_id'));
 
-  // Memoize loadAttendants to stabilize it for useEffect
+  // MemoizloadAttendants to stabilize it for useEffect
   const loadAttendants = useCallback(
     async (order) => {
       try {

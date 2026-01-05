@@ -1,0 +1,366 @@
+Warehouse Management & Inventory Orchestration Module
+Context
+
+You are designing a Warehouse Management & Inventory Orchestration module for an existing product called Sellytics.
+
+Sellytics already has a store-level inventory system backed by the dynamic_product schema (provided below). This schema MUST NOT be modified or broken.
+
+The new warehouse module is an optional extension, not a replacement.
+It must support:
+
+Stores using Sellytics inventory
+
+Stores NOT using Sellytics
+
+Warehouses operating independently
+
+This module must handle custody, movement, auditing, scanning, and reporting, while integrating conditionally with store inventories.
+
+Hard Constraints (Non-Negotiable)
+
+Do NOT alter the existing store inventory schema
+
+The dynamic_product table remains authoritative for store-level inventory.
+
+No required columns or logic may be added to it.
+
+Warehouse module must be optional
+
+A store can exist without a warehouse.
+
+A warehouse can exist without any store.
+
+Warehouse inventory is NOT store inventory
+
+Inventory synchronization is explicit and conditional.
+
+All stock movement must be auditable
+
+No silent quantity updates
+
+No destructive operations
+
+Existing Schema (Reference Only)
+
+The system already has:
+
+dynamic_product
+
+Triggers for:
+
+Auditing
+
+IMEI uniqueness per store
+
+Timestamp updates
+
+This schema supports:
+
+Unique products (IMEI-based)
+
+Non-unique products (quantity-based)
+
+Your solution must leverage this schema when applicable, without assuming it always exists.
+
+Core Business Problem to Solve
+
+A warehouse owner needs to:
+
+Receive goods from multiple stores or external clients
+
+Track what belongs to whom
+
+Know what entered, what left, and what remains
+
+Transfer goods to:
+
+Sellytics stores (with inventory sync)
+
+Non-Sellytics stores (notification only)
+
+Support:
+
+Serialized products
+
+Bulk products
+
+Enable real warehouse workflows:
+
+Continuous barcode scanning
+
+Multiple staff working simultaneously
+
+Real-time updates without UI blocking
+
+Required System Capabilities
+1. Warehouse Entity Model
+
+Design a warehouse system that:
+
+Supports multiple warehouses per owner
+
+Allows warehouses to serve:
+
+Sellytics stores
+
+External stores
+
+Internal warehouse-only operations
+
+A warehouse does not assume inventory ownership — it tracks custody.
+
+2. Client / Ownership Abstraction
+
+Create a client abstraction that represents:
+
+A Sellytics store
+
+An external store
+
+An individual or organization
+
+Clients:
+
+May or may not exist in Sellytics
+
+Must be referencable in warehouse transactions
+
+Must be auditable
+
+3. Warehouse Inventory Architecture
+
+Warehouse inventory must be ledger-based, not just quantity-based.
+
+Each movement:
+
+Has a type:
+
+IN
+
+OUT
+
+MOVE
+
+ADJUST
+
+References:
+
+Warehouse
+
+Client
+
+Product identity
+
+Is immutable
+
+Current stock is derived from movements.
+
+4. Product Identity Handling
+
+Support two product classes:
+
+Unique Products
+
+Serialized (IMEI, serial numbers)
+
+Quantity = number of serials
+
+Must prevent duplicates within a warehouse
+
+Non-Unique Products
+
+Bulk quantity
+
+Quantity explicitly tracked
+
+Product identity rules:
+
+If linked to Sellytics store → map to dynamic_product
+
+If external → warehouse-local SKU
+
+5. Barcode Scanning System
+
+Design a continuous scanning system with:
+
+Always-on scanning mode
+
+Real-time UI updates
+
+Session-based commits
+
+Special Requirements
+
+One operator scans continuously
+
+Another operator enters metadata
+
+Scanning UI can be minimized
+
+No data loss on interruption
+
+Behavior Rules
+
+Unique products:
+
+Each scan = one unit
+
+Duplicate scans flagged
+
+Non-unique products:
+
+Scan increments or focuses quantity input
+
+6. Stock Transfers & Synchronization
+Warehouse → Sellytics Store
+
+Record warehouse OUT movement
+
+Create/update store inventory via existing logic
+
+Must be atomic or compensatable
+
+Warehouse → External Store
+
+Record warehouse OUT movement
+
+Do NOT mutate store inventory
+
+Generate:
+
+Email
+
+Export (CSV / PDF)
+
+Store → Warehouse
+
+Record IN movement
+
+Explicit ownership declaration required
+
+7. Integration Modes
+
+Design for all scenarios:
+
+Scenario	Warehouse	Store Inventory
+Standalone Warehouse	Yes	No
+Sellytics Store	Yes	Auto-sync
+External Store	Yes	Notify only
+Mixed Usage	Yes	Conditional
+8. Auditing & Compliance
+
+All actions must record:
+
+Actor
+
+Timestamp
+
+Location
+
+Before/after state
+
+Rules:
+
+No deletion of stock history
+
+Corrections via reversal entries
+
+Full traceability per serial number
+
+9. Reporting & Dashboards
+
+Provide:
+
+Warehouse dashboard
+
+Client inventory statements
+
+Serialized item trace reports
+
+Reconciliation reports
+
+Reports must support:
+
+Sellytics stores
+
+External clients
+
+10. Edge Cases to Explicitly Handle
+
+Store rejects inventory sync
+
+Duplicate serials across warehouses
+
+Partial scan sessions
+
+Network failure mid-scan
+
+External store disputes record
+
+Warehouse-only internal movements
+
+Store not using Sellytics at all
+
+11. Technical Expectations
+
+Design should include:
+
+Database schema extensions (new tables only)
+
+Clear foreign key strategies
+
+Transaction boundaries
+
+Event-driven thinking
+
+Idempotency for sync actions
+
+Avoid:
+
+Tight coupling with dynamic_product
+
+Assumptions that store inventory exists
+
+Silent failure paths
+
+Output Expected from the AI / Architect
+
+High-level architecture diagram (conceptual)
+
+Proposed database tables (warehouse-specific)
+
+Data flow diagrams for:
+
+Intake
+
+Dispatch
+
+Sync
+
+Barcode scanning workflow
+
+Failure recovery strategies
+
+Security & permission model
+
+Migration and rollout strategy
+
+Design Philosophy Reminder
+
+“The warehouse owns movement.
+Stores own inventory.
+Integration is a contract — not an assumption.”
+
+Final Instruction
+
+Design this system as if it will be used in real warehouses, with real people, real mistakes, and real audits.
+
+Optimize for:
+
+Safety
+
+Clarity
+
+Auditability
+
+Extensibility

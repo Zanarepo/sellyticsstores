@@ -183,7 +183,7 @@ export default function Products() {
       {/* Add Modal */}
       {showAdd && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4  mt-24">
-          <form onSubmit={createProduct} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white  p-6 rounded-lg shadow-lg w-full max-w-md dark:bg-gray-900 dark:text-white">
+          <form onSubmit={createProduct} className="bg-white  text-gray-900  p-6 rounded-lg shadow-lg w-full max-w-md dark:bg-gray-900 dark:text-white">
             <h2 className="text-xl font-bold mb-4 ">Add Product</h2>
             {[
               { name:'name', label:'Name', type:'text' },
@@ -201,7 +201,7 @@ export default function Products() {
                   value={addForm[field.name]}
                   onChange={handleAddChange}
                   required={['name','purchase_price','purchase_qty'].includes(field.name)}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white dark:bg-gray-900 dark:text-white"
+                  className="w-full p-2 border rounded  dark:bg-gray-900 dark:text-white"
                 />
               </div>
             ))}
@@ -229,9 +229,9 @@ export default function Products() {
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow dark:bg-gray-900 dark:text-white">
+      <div className="overflow-x-auto bg-white  rounded-lg shadow dark:bg-gray-900 dark:text-white">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-200 dark:bg-gray-700">
+          <thead className="bg-gray-200 ">
             <tr>
               {['Name','Desc.','Purchase','Qty','Markup %','Price','Date','Actions'].map(h => (
                 <th key={h} className="px-4 py-2 text-left text-sm font-semibold dark:bg-gray-900 dark:text-indigo-500">{h}</th>
@@ -267,7 +267,7 @@ export default function Products() {
   <button
     onClick={() => setPage(prev => Math.max(prev - 1, 0))}
     disabled={page === 0}
-    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50 dark:bg-white dark:text-indigo-500"
+    className="px-3 py-1 bg-gray-200  rounded disabled:opacity-50 dark:bg-white dark:text-indigo-500"
   >
     Prev
   </button>
@@ -277,7 +277,7 @@ export default function Products() {
   <button
     onClick={() => setPage(prev => Math.min(prev + 1, totalPages - 1))}
     disabled={page + 1 >= totalPages}
-    className="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50 dark:bg-white dark:text-indigo-500"
+    className="px-3 py-1 bg-gray-200  rounded disabled:opacity-50 dark:bg-white dark:text-indigo-500"
   >
     Next
   </button>
@@ -297,7 +297,7 @@ export default function Products() {
       {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
+          <div className="bg-white  p-6 rounded-lg shadow-lg w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Edit {editing.name}</h2>
             {[
               { name:'name', label:'Name', type:'text' },
@@ -315,7 +315,7 @@ export default function Products() {
                   value={form[field.name] || ''}
                   onChange={handleFormChange}
                   required={['name','purchase_price','purchase_qty'].includes(field.name)}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                  className="w-full p-2 border rounded  dark:text-white"
                 />
               </div>
             ))}

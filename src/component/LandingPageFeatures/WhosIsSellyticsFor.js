@@ -25,6 +25,8 @@ export default function WhoIsSellyticsFor() {
       badge: 'Market',
       alt: 'Open market stall environment',
     },
+
+    
     {
       title: 'Corporate Operations',
       description: 'Built for structured retail like supermarkets and chain stores, streamlining inventory and sales with fixed pricing.',

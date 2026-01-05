@@ -1,0 +1,1810 @@
+// hooks/useBarcodeScanner.js
+import { useState, useEffect } from "react";
+import { supabase } from "../../../supabaseClient";
+import toast from "react-hot-toast";
+
+export function useBarcodeScanner({ sessionId, warehouseId, clientId, userId }) {
+  const [scannedItems, setScannedItems] = useState([]);
+  const [duplicateItems, setDuplicateItems] = useState([]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setScannedItems([]);
+      setDuplicateItems([]);
+      return;
+    }
+
+    // Load initial data
+    supabase
+      .from("warehouse_scan_events")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Load error:", error);
+        } else {
+          setScannedItems(data || []);
+          calculateDuplicates(data || []);
+        }
+      });
+
+    // Realtime subscription
+    const subscription = supabase
+      .channel("scan-events")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "warehouse_scan_events",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log("REALTIME NEW SCAN:", payload.new); // ← This must appear!
+          setScannedItems((prev) => {
+            const updated = [...prev, payload.new];
+            calculateDuplicates(updated);
+            return updated;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [sessionId]);
+
+  const calculateDuplicates = (items) => {
+    const counts = {};
+    items.forEach((item) => {
+      counts[item.scanned_value] = (counts[item.scanned_value] || 0) + 1;
+    });
+    const dups = Object.keys(counts).filter((k) => counts[k] > 1);
+    setDuplicateItems(dups);
+  };
+
+  const scan = async (value) => {
+    if (!value || !sessionId) return;
+
+    const { error } = await supabase
+      .from("warehouse_scan_events")
+      .insert({
+        session_id: sessionId,
+        scanned_value: value,
+        created_by: userId,
+      });
+
+    if (error) {
+      toast.error("Failed to save scan");
+    } else {
+      toast.success("Scanned!");
+    }
+  };
+
+  return { scannedItems, duplicateItems, scan };
+}
+
+
+
+
+// components/ClientCard.js
+import React from "react";
+
+export function ClientCard({ client, isSelected, onClick }) {
+  const isInternal = client.client_type === "SELLYTICS_STORE";
+
+  return (
+    <div
+      onClick={onClick}
+      className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+        isSelected
+          ? "border-indigo-600 bg-indigo-50 shadow-lg scale-105"
+          : "border-gray-200 hover:border-indigo-400 hover:shadow-md"
+      }`}
+    >
+      <div className="flex justify-between items-start mb-3">
+        <h3 className="font-bold text-lg text-gray-900">
+          {client.client_name}
+        </h3>
+        {isInternal && (
+          <span className="px-3 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
+            Your Store
+          </span>
+        )}
+      </div>
+
+      {client.business_name && client.business_name !== client.client_name && (
+        <p className="text-sm text-gray-600 mb-2">{client.business_name}</p>
+      )}
+
+      <div className="text-sm text-gray-500 space-y-1">
+        {client.email && <p>✉ {client.email}</p>}
+        {client.phone && <p>☎ {client.phone}</p>}
+      </div>
+
+      <p className="text-xs text-gray-400 mt-4">
+        {isInternal ? "Internal Client" : "External Client"}
+      </p>
+    </div>
+  );
+}
+
+// components/CommitScanSession.js
+import React, { useState } from "react";
+import { supabase } from '../../../supabaseClient';
+
+export function CommitScanSession({ sessionId, warehouseId, clientId, userId }) {
+  const [loading, setLoading] = useState(false);
+
+  const commitSession = async () => {
+    setLoading(true);
+    try {
+      // 1️⃣ Get all scanned items
+      const { data: scans, error } = await supabase
+        .from("warehouse_scan_events")
+        .select("*")
+        .eq("session_id", sessionId);
+
+      if (error) throw error;
+
+      // 2️⃣ Insert each into warehouse_ledger
+      for (const scan of scans) {
+        const quantity = scan.detected_product_id ? 1 : scan.quantity || 1;
+
+        await supabase.from("warehouse_ledger").insert([
+          {
+            warehouse_id: warehouseId,
+            warehouse_product_id: scan.detected_product_id,
+            client_id: clientId,
+            movement_type: "IN",
+            direction: "IN",
+            quantity,
+            unique_identifiers: scan.detected_product_id ? [scan.scanned_value] : null,
+            created_by: userId,
+            notes: scan.notes,
+          },
+        ]);
+      }
+
+      // 3️⃣ Update warehouse_inventory quantities
+      const productGroups = scans.reduce((acc, scan) => {
+        const key = scan.detected_product_id || "bulk";
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(scan);
+        return acc;
+      }, {});
+
+      for (const key in productGroups) {
+        const group = productGroups[key];
+        const productId = key === "bulk" ? null : Number(key);
+        const totalQty = group.length;
+
+        if (!productId) continue;
+
+        const { data: inv } = await supabase
+          .from("warehouse_inventory")
+          .select("*")
+          .eq("warehouse_product_id", productId)
+          .single();
+
+        if (inv) {
+          await supabase
+            .from("warehouse_inventory")
+            .update({ quantity: inv.quantity + totalQty, available_qty: inv.available_qty + totalQty })
+            .eq("warehouse_product_id", productId);
+        } else {
+          await supabase.from("warehouse_inventory").insert({
+            warehouse_product_id: productId,
+            quantity: totalQty,
+            available_qty: totalQty,
+          });
+        }
+      }
+
+      // 4️⃣ Close session
+      await supabase.from("warehouse_scan_sessions").update({ status: "COMMITTED", closed_at: new Date() }).eq("id", sessionId);
+
+      alert("Session committed successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to commit session: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={commitSession} disabled={loading}>
+      {loading ? "Committing..." : "Commit Scan Session"}
+    </button>
+  );
+}
+// components/DispatchForm.js
+import React, { useState } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+import { useWarehouseInventory } from "./useWarehouseInventory";
+import { useSession } from "./useSession"
+export function DispatchForm({ warehouseId, clientId }) {
+  const { userId } = useSession();
+  const { inventory, loading } = useWarehouseInventory(warehouseId, clientId);
+
+  const [items, setItems] = useState([]); // [{ productId, quantity }]
+
+  const addItem = () => {
+    setItems([...items, { productId: "", quantity: 1 }]);
+  };
+
+  const updateItem = (index, field, value) => {
+    const updated = [...items];
+    updated[index][field] = field === "productId" ? Number(value) : Math.max(1, Number(value) || 1);
+    setItems(updated);
+  };
+
+  const removeItem = (index) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  // Helper to get product name and available qty
+  const getProductInfo = (productId) => {
+    const item = inventory.find(i => i.warehouse_product_id?.id === productId);
+    return {
+      name: item?.warehouse_product_id?.product_name || "Unknown",
+      available: item?.available_qty || 0
+    };
+  };
+
+  const handleDispatch = async () => {
+    // Validation
+    for (const item of items) {
+      const { available } = getProductInfo(item.productId);
+      if (!item.productId || item.quantity > available) {
+        toast.error(`Invalid quantity for ${getProductInfo(item.productId).name}`);
+        return;
+      }
+    }
+
+    const ledgerEntries = items.map(item => ({
+      warehouse_id: warehouseId,
+      warehouse_product_id: item.productId,
+      client_id: clientId,
+      movement_type: "OUT",
+      movement_subtype: "STANDARD",
+      quantity: item.quantity,
+      notes: "Batch dispatch",
+      item_condition: "GOOD",
+      created_by: userId,
+    }));
+
+    const { error } = await supabase.from("warehouse_ledger").insert(ledgerEntries);
+
+    if (error) {
+      toast.error("Dispatch failed: " + error.message);
+      console.error(error);
+    } else {
+      toast.success(`Successfully dispatched ${items.reduce((s, i) => s + i.quantity, 0)} items!`);
+      setItems([]);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-center py-12 text-gray-600">Loading available stock...</div>;
+  }
+
+  // Only show products with stock
+  const productsInStock = inventory.filter(item => item.available_qty > 0);
+
+  if (productsInStock.length === 0) {
+    return (
+      <div className="text-center py-20 bg-gray-50 rounded-xl">
+        <p className="text-xl text-gray-600">No products in stock for dispatch</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold mb-8">Dispatch / Batch Ship</h2>
+
+      <div className="space-y-6">
+        {items.map((item, index) => {
+          const { name, available } = getProductInfo(item.productId);
+          return (
+            <div key={index} className="flex items-end space-x-4 p-6 bg-gray-50 rounded-xl">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
+                <select
+                  value={item.productId}
+                  onChange={(e) => updateItem(index, "productId", e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select a product...</option>
+                  {productsInStock.map((inv) => (
+                    <option key={inv.warehouse_product_id.id} value={inv.warehouse_product_id.id}>
+                      {inv.warehouse_product_id.product_name} — {inv.available_qty} available
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-40">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity (Max: {available})
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={available}
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => removeItem(index)}
+                className="px-6 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium"
+              >
+                Remove
+              </button>
+            </div>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={addItem}
+          className="w-full py-5 border-2 border-dashed border-indigo-400 rounded-xl text-indigo-600 font-semibold hover:bg-indigo-50 transition"
+        >
+          + Add Another Product
+        </button>
+
+        <button
+          onClick={handleDispatch}
+          disabled={
+            items.length === 0 ||
+            items.some(i => !i.productId || i.quantity > getProductInfo(i.productId).available)
+          }
+          className="w-full py-6 bg-red-600 text-white text-xl font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Confirm Batch Dispatch
+        </button>
+      </div>
+    </div>
+  );
+}// components/InventoryTable.js
+import React from "react";
+import { useWarehouseInventory } from "../hooks/useWarehouseInventory";
+import { useWarehouseProducts } from "../hooks/useWarehouseProducts";
+
+export function InventoryTable({ warehouseId, clientId }) {
+  const { products } = useWarehouseProducts(warehouseId, clientId);
+  const productIds = products.map((p) => p.id);
+  const { inventory } = useWarehouseInventory(productIds);
+
+  const rows = products.map((product) => {
+    const stock = inventory.find((i) => i.warehouse_product_id === product.id) || {};
+    return {
+      id: product.id,
+      name: product.product_name,
+      total: stock.quantity || 0,
+      available: stock.available_qty || 0,
+      damaged: stock.damaged_qty || 0,
+    };
+  });
+
+  return (
+    <div>
+      <h3>Current Inventory</h3>
+      <table border="1" cellPadding="5" cellSpacing="0">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Total Stock</th>
+            <th>Available</th>
+            <th>Damaged</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.name}</td>
+              <td>{r.total}</td>
+              <td>{r.available}</td>
+              <td>{r.damaged}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan="4" style={{ textAlign: "center" }}>
+                No inventory found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+// components/LedgerTable.js
+import React, { useState, useEffect } from "react";
+import { supabase } from '../../../supabaseClient';
+
+export function LedgerTable({ warehouseId, clientId }) {
+  const [ledger, setLedger] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clientId) return;
+
+    supabase
+      .from("warehouse_ledger")
+      .select("*, warehouse_product_id(product_name, sku)")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        setLedger(data || []);
+        setLoading(false);
+      });
+  }, [clientId]);
+
+  if (loading) return <p>Loading ledger...</p>;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold mb-6">Transaction Ledger</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3">Product</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Qty</th>
+              <th className="px-4 py-3">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {ledger.map((entry) => (
+              <tr key={entry.id}>
+                <td className="px-4 py-3">{new Date(entry.created_at).toLocaleDateString()}</td>
+                <td className="px-4 py-3">{entry.warehouse_product_id.product_name}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    entry.movement_type === "IN" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                  }`}>
+                    {entry.movement_type}
+                  </span>
+                </td>
+                <td className="px-4 py-3">{entry.quantity}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{entry.notes || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}import React, { useState } from "react";
+import { useProductAddForm } from "./useProductAddForm";
+import { BarcodeScanner } from "./BarcodeScanner";
+import { useSession } from "./useSession";
+
+export function ProductAddForm({ warehouseId, clientId, onSuccess }) {
+  const { userId } = useSession(); // Logged-in user UUID
+
+  const {
+    mode,
+    setMode,
+    form,
+    
+    setForm,
+    quantity,
+    setQuantity,
+    sessionId,
+    startScanSession,
+    submit,
+    isSubmitting,
+  } = useProductAddForm({ warehouseId, clientId, onSuccess });
+
+  // Live scan counts from BarcodeScanner
+  const [liveScanCount, setLiveScanCount] = useState({ total: 0, unique: 0 });
+
+  // Calculate suggested quantity based on product type
+  const suggestedQuantity = mode === "scan" && sessionId
+    ? form.product_type === "SERIALIZED"
+      ? liveScanCount.unique
+      : liveScanCount.total
+    : null;
+
+  // Safe handler – updates quantity only if user hasn't overridden it
+  const handleScanUpdate = ({ total, unique }) => {
+    setLiveScanCount({ total, unique });
+
+    const newSuggested = form.product_type === "SERIALIZED" ? unique : total;
+
+    // Auto-fill only if quantity is still default (0 or 1)
+    // or matches previous scan count (user cleared or reset)
+    if (quantity <= 1 || quantity === liveScanCount.total || quantity === liveScanCount.unique) {
+      setQuantity(Math.max(1, newSuggested));
+    }
+  };
+
+  const finalQuantity = quantity > 0 ? quantity : 0;
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 text-gray-900">
+        Add New Product
+      </h2>
+
+      {/* Mode Toggle */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <button
+          type="button"
+          onClick={() => setMode("manual")}
+          className={`flex-1 py-4 rounded-xl font-semibold transition ${
+            mode === "manual" ? "bg-indigo-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          Manual Entry
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("scan")}
+          className={`flex-1 py-4 rounded-xl font-semibold transition ${
+            mode === "scan" ? "bg-indigo-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          Scan Barcodes
+        </button>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(finalQuantity);
+        }}
+        className="space-y-6"
+      >
+        {/* Product Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Product Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            required
+            value={form.product_name}
+            onChange={(e) => setForm({ ...form, product_name: e.target.value })}
+            placeholder="e.g. iPhone 15 Pro"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
+        {/* SKU */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">SKU (Optional)</label>
+          <input
+            value={form.sku}
+            onChange={(e) => setForm({ ...form, sku: e.target.value })}
+            placeholder="e.g. IP15PRO-256-BLK"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        {/* Product Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+          <select
+            value={form.product_type}
+            onChange={(e) => setForm({ ...form, product_type: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="STANDARD">Standard (Non-Unique)</option>
+            <option value="SERIALIZED">Serialized (Unique Barcode per Unit)</option>
+            <option value="BATCH">Batch (Same Barcode for All Units)</option>
+          </select>
+        </div>
+
+        {/* Quantity – Always Editable + Live Feedback */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Quantity <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            min="1"
+            required
+            value={quantity}
+            onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-lg font-semibold"
+          />
+          {suggestedQuantity !== null && (
+            <div className="mt-2 text-sm">
+              {suggestedQuantity === quantity ? (
+                <span className="text-green-600 font-medium">
+                  ✓ Matches scanned items ({suggestedQuantity})
+                </span>
+              ) : (
+                <span className="text-indigo-600">
+                  ℹ️ Scanned: {suggestedQuantity} item{suggestedQuantity !== 1 ? "s" : ""} — edit if needed
+                </span>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-gray-500 mt-2">
+            You can edit this manually at any time, even during scanning.
+          </p>
+        </div>
+
+        {/* Full Barcode Scanner */}
+        
+     {mode === "scan" && (form.product_type === "SERIALIZED" || form.product_type === "BATCH") && (
+  <div className="mt-8 -mx-6 sm:-mx-8">
+    {sessionId ? (
+      <BarcodeScanner
+        warehouseId={warehouseId}
+        clientId={clientId}
+        userId={userId}
+        onSessionStart={(id) => console.log("Session started:", id)}
+        onScanUpdate={({ total, unique }) => {
+          // Live feedback: update quantity automatically if not manually overridden
+          const suggested = form.product_type === "SERIALIZED" ? unique : total;
+          if (quantity <= 1 || quantity === liveScanCount.total || quantity === liveScanCount.unique) {
+            setQuantity(Math.max(1, suggested));
+          }
+          // Also update local state for display
+          setLiveScanCount({ total, unique });
+        }}
+      />
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-b-2xl">
+                <button
+                  type="button"
+                  onClick={startScanSession}
+                  className="px-10 py-6 bg-indigo-600 text-white text-2xl font-bold rounded-2xl hover:bg-indigo-700 shadow-xl transition transform hover:scale-105"
+                >
+                  Activate Full Scanner
+                </button>
+                <p className="mt-4 text-gray-600 max-w-md mx-auto">
+                  Open the dedicated scanner with live list, stats and duplicate detection.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting || finalQuantity < 1}
+          className="w-full py-5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xl font-bold rounded-xl shadow-lg transition transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Creating Product..." : "Create Product"}
+        </button>
+      </form>
+    </div>
+  );
+}// components/ScanMetadataEntry.js
+import React, { useState } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+import { useSession } from "./useSession";
+
+export function ScanMetadataEntry({ sessionId }) {
+  const { userId } = useSession();
+  const [scannedItems, setScannedItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [notes, setNotes] = useState("");
+
+  // Real-time fetch
+  React.useEffect(() => {
+    if (!sessionId) return;
+
+    const fetch = async () => {
+      const { data } = await supabase
+        .from("warehouse_scan_events")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at");
+      setScannedItems(data || []);
+    };
+    fetch();
+
+    const channel = supabase
+      .channel("metadata-entry")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "warehouse_scan_events", filter: `session_id=eq.${sessionId}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setScannedItems((prev) => [...prev, payload.new]);
+          } else if (payload.eventType === "UPDATE") {
+            setScannedItems((prev) =>
+              prev.map((i) => (i.id === payload.new.id ? payload.new : i))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [sessionId]);
+
+  const saveNotes = async () => {
+    if (!selectedItem) return;
+
+    const { error } = await supabase
+      .from("warehouse_scan_events")
+      .update({ notes: notes.trim() || null, updated_by: userId })
+      .eq("id", selectedItem.id);
+
+    if (error) {
+      toast.error("Failed to save notes");
+    } else {
+      toast.success("Notes saved!");
+      setNotes("");
+      setSelectedItem(null);
+    }
+  };
+
+  if (!sessionId) return null;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-8 mt-10">
+      <h2 className="text-2xl font-bold mb-6">Add Metadata to Scanned Items</h2>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        <div>
+          <h3 className="font-semibold mb-4">Scanned Items ({scannedItems.length})</h3>
+          <ul className="space-y-3 max-h-96 overflow-y-auto">
+            {scannedItems.map((item) => (
+              <li
+                key={item.id}
+                onClick={() => {
+                  setSelectedItem(item);
+                  setNotes(item.notes || "");
+                }}
+                className={`p-4 rounded-lg cursor-pointer transition ${
+                  selectedItem?.id === item.id
+                    ? "bg-indigo-100 border-2 border-indigo-500"
+                    : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
+                }`}
+              >
+                <div className="flex justify-between">
+                  <span className="font-mono font-bold">{item.scanned_value}</span>
+                  {item.is_duplicate && <span className="text-red-600 text-sm">DUPLICATE</span>}
+                </div>
+                {item.notes && <p className="text-sm text-gray-600 mt-2 italic">"{item.notes}"</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          {selectedItem ? (
+            <>
+              <h3 className="font-semibold mb-4">
+                Notes for: <span className="font-mono">{selectedItem.scanned_value}</span>
+              </h3>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={8}
+                placeholder="e.g., Slight scratch on corner, Missing tag, Perfect condition..."
+                className="w-full p-4 border rounded-lg resize-none"
+              />
+              <button
+                onClick={saveNotes}
+                className="mt-4 px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Save Notes
+              </button>
+            </>
+          ) : (
+            <p className="text-center text-gray-500 py-20">
+              Click an item to add notes or condition details
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}// components/StockInForm.js
+import React, { useState } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+import { useWarehouseProducts } from "./useWarehouseProducts";
+import { useCreateScanSession } from "./useCreateScanSession";
+import { useBarcodeScanner } from "./useBarcodeScanner";
+import { useSession } from "./useSession";
+
+export function StockInForm({ warehouseId, clientId }) {
+  const { userId } = useSession();
+  const { products } = useWarehouseProducts(warehouseId, clientId);
+  const { createSession } = useCreateScanSession();
+
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [sessionId, setSessionId] = useState(null);
+  const [useScanner, setUseScanner] = useState(false);
+
+  const { scannedItems, duplicates, scan } = useBarcodeScanner({
+    sessionId,
+    warehouseId,
+    clientId,
+    userId,
+  });
+
+  const selectedProduct = products.find(p => p.id === Number(selectedProductId));
+
+  const startScanning = async () => {
+    const id = await createSession(warehouseId, clientId, userId);
+    if (id) {
+      setSessionId(id);
+      setUseScanner(true);
+    }
+  };
+
+  const handleStockIn = async () => {
+    if (!selectedProductId) {
+      toast.error("Select a product");
+      return;
+    }
+
+    let uniqueIdentifiers = null;
+    let finalQuantity = quantity;
+
+    if (useScanner && scannedItems.length > 0) {
+      finalQuantity = scannedItems.length;
+      if (selectedProduct.product_type === "SERIALIZED") {
+        uniqueIdentifiers = scannedItems.map(i => i.scanned_value);
+      }
+    }
+
+    const { error } = await supabase.from("warehouse_ledger").insert({
+      warehouse_id: warehouseId,
+      warehouse_product_id: Number(selectedProductId),
+      client_id: clientId,
+      movement_type: "IN",
+      movement_subtype: "STANDARD",
+      quantity: finalQuantity,
+      notes: useScanner ? "Received via scanning" : "Manual stock in",
+      item_condition: "GOOD",
+      unique_identifiers: uniqueIdentifiers,
+      created_by: userId,
+    });
+
+    if (error) {
+      toast.error("Stock in failed");
+      console.error(error);
+    } else {
+      toast.success(`Stock in successful: ${finalQuantity} unit(s)`);
+      // Reset form
+      setQuantity(1);
+      setSelectedProductId("");
+      setSessionId(null);
+      setUseScanner(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold mb-8">Stock In / Receive Goods</h2>
+
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
+          <select
+            value={selectedProductId}
+            onChange={(e) => setSelectedProductId(e.target.value)}
+            className="w-full px-4 py-3 border rounded-lg text-lg"
+          >
+            <option value="">Select product...</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.product_name} ({p.sku || "No SKU"}) - {p.product_type}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {!useScanner && selectedProduct && selectedProduct.product_type !== "SERIALIZED" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              className="w-full px-4 py-3 border rounded-lg text-lg"
+            />
+          </div>
+        )}
+
+        {selectedProduct && selectedProduct.product_type === "SERIALIZED" && (
+          <div className="p-6 bg-amber-50 rounded-xl border border-amber-200">
+            <p className="font-medium text-amber-900 mb-4">
+              This is a serialized product. Use scanner to receive unique items.
+            </p>
+            {!sessionId ? (
+              <button
+                onClick={startScanning}
+                className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+              >
+                Start Scanning Serials
+              </button>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Scan serial number..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      scan(e.target.value);
+                      e.target.value = "";
+                    }
+                  }}
+                  className="w-full text-2xl text-center py-6 border-4 border-dashed border-amber-400 rounded-lg mb-6"
+                />
+                <p className="text-center text-2xl font-bold">{scannedItems.length} serials scanned</p>
+                {duplicates.length > 0 && (
+                  <p className="text-red-600 text-center mt-4">{duplicates.length} duplicates detected</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={handleStockIn}
+          disabled={!selectedProductId || (useScanner && scannedItems.length === 0)}
+          className="w-full py-5 bg-green-600 text-white text-xl font-bold rounded-xl hover:bg-green-700 disabled:opacity-50"
+        >
+          Confirm Stock In
+        </button>
+      </div>
+    </div>
+  );
+}// components/StoreDropdown.js
+import React from "react";
+
+export function StoreDropdown({
+  stores = [],
+  selectedStore,
+  onSelectStore,
+  loading = false,
+  disabled = false,
+  label = "Store",
+  placeholder = "Select a store",
+}) {
+  return (
+    <div className="w-full">
+      <label htmlFor="store-dropdown" className="block text-sm font-medium text-gray-700 mb-1">
+        {label} {stores.length > 0 && <span className="text-red-500">*</span>}
+      </label>
+
+      {loading ? (
+        <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-500 text-sm">
+          Loading stores...
+        </div>
+      ) : stores.length === 0 ? (
+        <div className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500 text-sm italic">
+          No stores available
+        </div>
+      ) : (
+        <select
+          id="store-dropdown"
+          value={selectedStore || ""}
+          onChange={(e) => onSelectStore(e.target.value)}
+          disabled={disabled || stores.length === 0}
+          className={`
+            w-full px-3 py-2 border rounded-md shadow-sm text-base
+            focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+            transition-colors duration-200
+            ${disabled || stores.length === 0
+              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+              : "bg-white text-gray-900 cursor-pointer hover:border-gray-400"
+            }
+          `}
+        >
+          <option value="" disabled>
+            {placeholder}
+          </option>
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.shop_name}
+              {store.location && ` — ${store.location}`}
+              {store.store_code && ` (${store.store_code})`}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {stores.length > 0 && selectedStore && (
+        <p className="mt-1 text-xs text-gray-500">
+          Selected: {stores.find((s) => s.id === selectedStore)?.shop_name || "Unknown"}
+        </p>
+      )}
+    </div>
+  );
+}// hooks/useBarcodeScanner.js
+import { useState, useEffect } from "react";
+import { supabase } from "../../../supabaseClient";
+import toast from "react-hot-toast";
+
+export function useBarcodeScanner({ sessionId, warehouseId, clientId, userId }) {
+  const [scannedItems, setScannedItems] = useState([]);
+  const [duplicateItems, setDuplicateItems] = useState([]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setScannedItems([]);
+      setDuplicateItems([]);
+      return;
+    }
+
+    // Load initial data
+    supabase
+      .from("warehouse_scan_events")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Load error:", error);
+        } else {
+          setScannedItems(data || []);
+          calculateDuplicates(data || []);
+        }
+      });
+
+    // Realtime subscription
+    const subscription = supabase
+      .channel("scan-events")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "warehouse_scan_events",
+          filter: `session_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          console.log("REALTIME NEW SCAN:", payload.new); // ← This must appear!
+          setScannedItems((prev) => {
+            const updated = [...prev, payload.new];
+            calculateDuplicates(updated);
+            return updated;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [sessionId]);
+
+  const calculateDuplicates = (items) => {
+    const counts = {};
+    items.forEach((item) => {
+      counts[item.scanned_value] = (counts[item.scanned_value] || 0) + 1;
+    });
+    const dups = Object.keys(counts).filter((k) => counts[k] > 1);
+    setDuplicateItems(dups);
+  };
+
+  const scan = async (value) => {
+    if (!value || !sessionId) return;
+
+    const { error } = await supabase
+      .from("warehouse_scan_events")
+      .insert({
+        session_id: sessionId,
+        scanned_value: value,
+        created_by: userId,
+      });
+
+    if (error) {
+      toast.error("Failed to save scan");
+    } else {
+      toast.success("Scanned!");
+    }
+  };
+
+  return { scannedItems, duplicateItems, scan };
+}// hooks/useCreateScanSession.js
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+
+export function useCreateScanSession() {
+  const createSession = async (warehouseId, clientId, userId) => {
+    const { data, error } = await supabase
+      .from("warehouse_scan_sessions")
+      .insert({
+        warehouse_id: warehouseId,
+        client_id: clientId,
+        created_by: userId,
+        status: "ACTIVE",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      toast.error("Failed to start scan session");
+      console.error(error);
+      return null;
+    }
+
+    toast.success("Scan session started!");
+    return data.id;
+  };
+
+  return { createSession };
+}
+
+import { useState, useEffect } from "react";
+import { supabase } from "../../../supabaseClient";
+import toast from "react-hot-toast";
+import { useCreateScanSession } from "./useCreateScanSession";
+import { useBarcodeScanner } from "./useBarcodeScanner";
+import { useSession } from "./useSession";
+
+export function useProductAddForm({ warehouseId, clientId, onSuccess }) {
+  const { userId } = useSession();
+  const { createSession } = useCreateScanSession();
+
+  const [mode, setMode] = useState("manual");
+  const [sessionId, setSessionId] = useState(null);
+  const [quantity, setQuantity] = useState(0);
+  const [form, setForm] = useState({
+    product_name: "",
+    sku: "",
+    product_type: "STANDARD",
+  });
+
+  const { scannedItems, duplicates, scan } = useBarcodeScanner({
+    sessionId,
+    warehouseId,
+    clientId,
+    userId,
+  });
+
+  // Auto-update quantity
+  useEffect(() => {
+    if (mode === "scan") {
+      setQuantity(scannedItems.length);
+    }
+  }, [scannedItems.length, mode]);
+
+  const startScanSession = async () => {
+    const id = await createSession(warehouseId, clientId, userId);
+    if (id) setSessionId(id);
+  };
+
+  const submit = async () => {
+    if (!form.product_name.trim()) {
+      toast.error("Product name is required");
+      return;
+    }
+
+    const { data: existing } = await supabase
+      .from("warehouse_products")
+      .select("id")
+      .eq("warehouse_id", warehouseId)
+      .eq("warehouse_client_id", clientId)
+      .ilike("product_name", form.product_name.trim());
+
+    if (existing?.length > 0) {
+      toast.error("Product with this name already exists");
+      return;
+    }
+
+    const finalQty = mode === "manual" ? Number(quantity) : scannedItems.length;
+    const uniqueIdentifiers =
+      form.product_type === "SERIALIZED"
+        ? scannedItems.map(i => i.scanned_value)
+        : null;
+
+    if (form.product_type === "SERIALIZED" && finalQty === 0) {
+      toast.error("Scan at least one serial for serialized product");
+      return;
+    }
+
+    const { data: product, error } = await supabase
+      .from("warehouse_products")
+      .insert({
+        warehouse_id: warehouseId,
+        warehouse_client_id: clientId,
+        product_name: form.product_name.trim(),
+        sku: form.sku.trim() || null,
+        product_type: form.product_type,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Failed to create product");
+      return;
+    }
+
+    if (finalQty > 0) {
+      await supabase.from("warehouse_ledger").insert({
+        warehouse_id: warehouseId,
+        warehouse_product_id: product.id,
+        client_id: clientId,
+        movement_type: "IN",
+        movement_subtype: "STANDARD",
+        quantity: finalQty,
+        unique_identifiers: uniqueIdentifiers,
+        created_by: userId,
+        notes:
+          mode === "scan"
+            ? "Initial stock via serial scanning"
+            : "Initial stock on creation",
+        item_condition: "GOOD",
+      });
+    }
+
+    toast.success(`Product "${form.product_name}" created with ${finalQty} unit(s)!`);
+    setForm({ product_name: "", sku: "", product_type: "STANDARD" });
+    setQuantity(0);
+    setSessionId(null);
+    onSuccess?.();
+  };
+
+  return {
+    mode,
+    setMode,
+    form,
+    setForm,
+    quantity,
+    setQuantity,
+    scannedItems,
+    duplicates,
+    sessionId,
+    startScanSession,
+    scan,
+    submit,
+  };
+}
+// hooks/useScanSession.js
+import { useState } from "react";
+import { supabase } from "../lib/supabase";
+import toast from "react-hot-toast";
+import { useSession } from "./useSession";
+
+export function useScanSession() {
+  const { userId } = useSession();
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const createSession = async (warehouseId, clientId) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("warehouse_scan_sessions")
+        .insert([{ warehouse_id: warehouseId, client_id: clientId, created_by: userId }])
+        .select()
+        .single();
+      if (error) throw error;
+      setSessions([...sessions, data]);
+      return data;
+    } catch (e) {
+      toast.error("Failed to create session");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeSession = async (sessionId) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("warehouse_scan_sessions")
+        .update({ status: "COMMITTED" })
+        .eq("id", sessionId);
+      if (error) throw error;
+      setSessions(sessions.map((s) => (s.id === sessionId ? { ...s, status: "COMMITTED" } : s)));
+    } catch (e) {
+      toast.error("Failed to close session");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { sessions, createSession, closeSession, loading };
+}
+// hooks/useStores.js
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "../lib/supabase";
+import toast from "react-hot-toast";
+
+export function useStores(fetchInventory) {
+  const [stores, setStores] = useState([]);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStores = useCallback(async () => {
+    const ownerId = localStorage.getItem("owner_id");
+    const singleStoreId = localStorage.getItem("store_id");
+
+    setLoading(true);
+    try {
+      if (!ownerId) {
+        // Single-store user
+        setStores([]);
+        setSelectedStore(singleStoreId);
+        if (singleStoreId) await fetchInventory(singleStoreId);
+      } else {
+        // Multi-store user
+        const { data, error } = await supabase
+          .from("stores")
+          .select("id, shop_name")
+          .eq("owner_user_id", Number(ownerId))
+          .order("shop_name");
+        if (error) throw error;
+
+        setStores(data || []);
+
+        if (!selectedStore && data?.length) {
+          const id = String(data[0].id);
+          setSelectedStore(id);
+          localStorage.setItem("store_id", id);
+          await fetchInventory(id);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load stores");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedStore, fetchInventory]);
+
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
+
+  const selectStore = async (storeId) => {
+    setSelectedStore(storeId);
+    localStorage.setItem("store_id", storeId);
+    await fetchInventory(storeId);
+  };
+
+  return { stores, selectedStore, selectStore, loading };
+}
+// hooks/useWarehouseClients.js
+import { useState, useEffect } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+
+export function useWarehouseClients(warehouseId) {
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchClients = async () => {
+    if (!warehouseId) {
+      setClients([]);
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("warehouse_clients")
+      .select("id, client_type, sellytics_store_id, client_name, business_name, email, phone, is_active")
+      .eq("warehouse_id", warehouseId)
+      .eq("is_active", true)
+      .order("client_name");
+
+    if (error) {
+      toast.error("Failed to load clients");
+      console.error(error);
+      setClients([]);
+    } else {
+      setClients(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, [warehouseId]);
+
+  return { clients, loading, refetch: fetchClients };
+}
+
+
+// hooks/useWarehouseProducts.js
+import { useState, useEffect } from "react";
+import { supabase } from '../../../supabaseClient';
+
+export function useWarehouseProducts(warehouseId, clientId) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!warehouseId || !clientId) {
+      setProducts([]);
+      return;
+    }
+
+    setLoading(true);
+    supabase
+      .from("warehouse_products")
+      .select("id, product_name, sku, product_type, metadata")
+      .eq("warehouse_id", warehouseId)
+      .eq("warehouse_client_id", clientId)
+      .order("product_name")
+      .then(({ data, error }) => {
+        if (error) console.error(error);
+        setProducts(data || []);
+      })
+      .finally(() => setLoading(false));
+  }, [warehouseId, clientId]);
+
+  return { products, loading };
+}// hooks/useWarehouses.js
+import { useState, useEffect } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+import { useSession } from "./useSession";
+
+export function useWarehouses() {
+  const { storeId } = useSession();
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!storeId) {
+      setWarehouses([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    supabase
+      .from("warehouses")
+      .select("id, name, location")
+      .eq("owner_store_id", storeId) // assuming column name
+      .order("name")
+      .then(({ data, error }) => {
+        if (error) {
+          toast.error("Failed to load warehouses");
+          console.error(error);
+          setWarehouses([]);
+        } else {
+          setWarehouses(data || []);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [storeId]);
+
+  return { warehouses, loading };
+}// hooks/useWarehouseStock.js
+import { useState } from "react";
+import { supabase } from '../../../supabaseClient';
+import toast from "react-hot-toast";
+import { useSession } from "./useSession";
+
+export function useWarehouseStock() {
+  const { userId, storeId } = useSession();
+  const [loading, setLoading] = useState(false);
+
+  const stockIn = async ({ warehouseId, clientId, productId, quantity, serials }) => {
+    setLoading(true);
+    try {
+      // RPC call or insert to warehouse_ledger
+      const { data, error } = await supabase.rpc("stock_in_warehouse", {
+        warehouse_id: warehouseId,
+        client_id: clientId,
+        product_id: productId,
+        quantity,
+        serials,
+        created_by: userId,
+      });
+      if (error) throw error;
+      toast.success("Stock In successful");
+      return data;
+    } catch (e) {
+      console.error(e);
+      toast.error("Stock In failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stockOut = async ({ warehouseId, clientId, productId, quantity, serials }) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("stock_out_warehouse", {
+        warehouse_id: warehouseId,
+        client_id: clientId,
+        product_id: productId,
+        quantity,
+        serials,
+        created_by: userId,
+      });
+      if (error) throw error;
+      toast.success("Stock Out successful");
+      return data;
+    } catch (e) {
+      console.error(e);
+      toast.error("Stock Out failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processReturn = async ({ warehouseId, clientId, productId, quantity, reason }) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("warehouse_return_requests")
+        .insert([{ warehouse_id: warehouseId, client_id: clientId, warehouse_product_id: productId, quantity, reason }])
+        .select();
+      if (error) throw error;
+      toast.success("Return request created");
+      return data;
+    } catch (e) {
+      console.error(e);
+      toast.error("Return failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { loading, stockIn, stockOut, processReturn };
+}
+
+
+
+// components/WarehouseDashboard.js
+import React, { useState, useEffect } from "react";
+import { useSession } from "./useSession";
+import { useWarehouses } from "./useWarehouses";
+import { useWarehouseClients } from "./useWarehouseClients";
+import { ClientCard } from "./ClientCard";
+import { ClientOnboardModal } from "./ClientOnboardModal";
+import { ProductAddForm } from "./ProductAddForm";
+import { StockInForm } from "./StockInForm";
+import { DispatchForm } from "./DispatchForm";
+import { LedgerTable } from "./LedgerTable";
+import { supabase } from '../../../supabaseClient';
+
+
+export function WarehouseDashboard() {
+  const { userId, storeId, ownerId } = useSession();
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [activeTab, setActiveTab] = useState("products");
+  const [showOnboardModal, setShowOnboardModal] = useState(false);
+  const [ownStoreName, setOwnStoreName] = useState("My Store");
+
+  const { warehouses, loading: warehousesLoading } = useWarehouses();
+  const { clients, loading: clientsLoading, refetch: refetchClients } = useWarehouseClients(selectedWarehouseId);
+
+  // Fetch actual store name
+  useEffect(() => {
+    if (!storeId) return;
+
+    const fetchStoreName = async () => {
+      const { data, error } = await supabase
+        .from("stores")
+        .select("shop_name")
+        .eq("id", storeId)
+        .single();
+
+      if (error) {
+        console.error("Failed to fetch store name:", error);
+      } else if (data?.shop_name) {
+        setOwnStoreName(data.shop_name);
+      }
+    };
+
+    fetchStoreName();
+  }, [storeId]);
+
+  // Auto-select first warehouse
+  useEffect(() => {
+    if (warehouses.length > 0 && !selectedWarehouseId) {
+      setSelectedWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses]);
+
+  // REMOVED: The auto-onboarding useEffect that caused duplicates
+
+  // Auto-select your own store client (if exists)
+  useEffect(() => {
+    if (clients.length > 0 && !selectedClient) {
+      const ownClient = clients.find((c) => c.client_type === "SELLYTICS_STORE");
+      if (ownClient) {
+        setSelectedClient(ownClient);
+        setActiveTab("products");
+      } else {
+        setSelectedClient(clients[0]); // fallback to first client
+      }
+    }
+  }, [clients, selectedClient]);
+
+  // Reset selected client when warehouse changes
+  useEffect(() => {
+    setSelectedClient(null);
+  }, [selectedWarehouseId]);
+
+  if (!userId || !storeId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-red-600 mb-4">Access Denied</p>
+          <p className="text-gray-600">Session expired or invalid. Please log in again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: "products", label: "Products" },
+    { id: "stockin", label: "Stock In" },
+    { id: "dispatch", label: "Dispatch" },
+    { id: "ledger", label: "Ledger" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-900">Warehouse Dashboard</h1>
+
+            {warehousesLoading ? (
+              <div className="w-64 h-12 bg-gray-200 rounded animate-pulse" />
+            ) : (
+              <select
+                value={selectedWarehouseId || ""}
+                onChange={(e) => {
+                  const value = e.target.value ? Number(e.target.value) : null;
+                  setSelectedWarehouseId(value);
+                  setSelectedClient(null);
+                  setActiveTab("products");
+                }}
+                className="px-6 py-3 border border-gray-300 rounded-xl text-lg font-medium focus:ring-4 focus:ring-indigo-200 focus:border-indigo-500"
+              >
+                <option value="">Select Warehouse</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        {!selectedWarehouseId ? (
+          <div className="text-center py-32 bg-white rounded-2xl shadow">
+            <p className="text-3xl text-gray-600 font-light">
+              Please select a warehouse to manage clients and inventory
+            </p>
+          </div>
+        ) : (
+          <>
+            <section className="mb-16">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-bold text-gray-900">Clients</h2>
+                <button
+                  onClick={() => setShowOnboardModal(true)}
+                  className="px-8 py-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-lg font-semibold shadow-md transition"
+                >
+                  + Onboard External Client
+                </button>
+              </div>
+
+              {clientsLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="h-48 bg-gray-200 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : clients.length === 0 ? (
+                <div className="text-center py-24 bg-white rounded-2xl shadow">
+                  <p className="text-2xl text-gray-600 mb-8">
+                    No clients onboarded yet. Use the button above to add one.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {clients.map((client) => (
+                    <ClientCard
+                      key={client.id}
+                      client={client}
+                      isSelected={selectedClient?.id === client.id}
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setActiveTab("products");
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Client Operations */}
+            {selectedClient && (
+              <section className="bg-white rounded-3xl shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-10 py-8">
+                  <h2 className="text-4xl font-bold text-white">
+                    Managing: {selectedClient.client_name}
+                  </h2>
+                  <p className="text-indigo-100 mt-2 text-lg">
+                    {selectedClient.business_name && selectedClient.business_name !== selectedClient.client_name
+                      ? selectedClient.business_name
+                      : selectedClient.client_type === "SELLYTICS_STORE"
+                      ? "Your Sellytics Store"
+                      : "External Client"}
+                  </p>
+                </div>
+
+                <div className="border-b border-gray-200">
+                  <nav className="flex space-x-12 px-10 -mb-px">
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`py-6 px-2 border-b-4 font-semibold text-lg transition-all ${
+                          activeTab === tab.id
+                            ? "border-indigo-600 text-indigo-600"
+                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                <div className="p-10">
+                  {activeTab === "products" && (
+                    <ProductAddForm
+                      warehouseId={selectedWarehouseId}
+                      clientId={selectedClient.id}
+                      onSuccess={() => {}}
+                    />
+                  )}
+                  {activeTab === "stockin" && (
+                    <StockInForm warehouseId={selectedWarehouseId} clientId={selectedClient.id} />
+                  )}
+                  {activeTab === "dispatch" && (
+                    <DispatchForm warehouseId={selectedWarehouseId} clientId={selectedClient.id} />
+                  )}
+                  {activeTab === "ledger" && (
+                    <LedgerTable warehouseId={selectedWarehouseId} clientId={selectedClient.id} />
+                  )}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Onboard Modal */}
+      {showOnboardModal && selectedWarehouseId && (
+        <ClientOnboardModal
+          warehouseId={selectedWarehouseId}
+          onClose={() => setShowOnboardModal(false)}
+          onSuccess={refetchClients}
+        />
+      )}
+    </div>
+  );
+}

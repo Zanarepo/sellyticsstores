@@ -109,7 +109,7 @@ const handleSubmit = async (e) => {
       return toast.error(`Duplicate device IDs in "${p.name}"`);
   }
 
-  const userEmail = localStorage.getItem('user_email'); // Grab here (safe, inside submit)
+  const userEmail = localStorage.getItem('user_email');
 
   setIsSubmitting(true);
   try {
@@ -121,7 +121,7 @@ const handleSubmit = async (e) => {
         selling_price: Number(product.selling_price) || 0,
         suppliers_name: product.suppliers_name?.trim() || null,
         is_unique: product.is_unique,
-        created_by_email: userEmail || null, // ADD THIS LINE
+        created_by_email: userEmail || null,
       };
 
       if (product.is_unique) {
@@ -238,28 +238,28 @@ const handleSubmit = async (e) => {
         </motion.div>
       </motion.div>
 
-   {scanner.showScanner && (
-  <ScannerModal
-    show={scanner.showScanner}
-    scannerMode={scanner.scannerMode}
-    setScannerMode={scanner.setScannerMode}
-    continuousScan={scanner.continuousScan}
-    setContinuousScan={scanner.setContinuousScan}
-    isLoading={scanner.isLoading}
-    error={scanner.error}
-    videoRef={scanner.videoRef}
-    manualInput={scanner.manualInput}
-    setManualInput={scanner.setManualInput}
-    onScanSuccess={scanner.handleCameraScan}
-    onManualSubmit={scanner.handleManualSubmit}
-    scannedItems={scanner.scannedItems}
-    removeScannedItem={scanner.removeScannedItem}
-    updateScannedItemSize={scanner.updateScannedItemSize}
-    completeScanning={scanner.completeScanning}
-    onClose={scanner.closeScanner}
-    scanningFor={scanner.scanningFor}
-  />
-)}
+      {scanner.showScanner && (
+        <ScannerModal
+          show={scanner.showScanner}
+          scannerMode={scanner.scannerMode}
+          setScannerMode={scanner.setScannerMode}
+          continuousScan={scanner.continuousScan}
+          setContinuousScan={scanner.setContinuousScan}
+          isLoading={scanner.isLoading}
+          error={scanner.error}
+          videoRef={scanner.videoRef}
+          manualInput={scanner.manualInput}
+          setManualInput={scanner.setManualInput}
+          onScanSuccess={scanner.handleCameraScan}
+          onManualSubmit={scanner.handleManualSubmit}
+          scannedItems={scanner.scannedItems}
+          removeScannedItem={scanner.removeScannedItem}
+          updateScannedItemSize={scanner.updateScannedItemSize}
+          completeScanning={scanner.completeScanning}
+          onClose={scanner.closeScanner}
+          scanningFor={scanner.scanningFor}
+        />
+      )}
     </>
   );
 }

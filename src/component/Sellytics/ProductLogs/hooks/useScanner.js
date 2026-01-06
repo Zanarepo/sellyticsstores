@@ -117,7 +117,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
         setManualInput('');
     }, []);
 
-    // Camera scan handler
+    // Camera scan handler - THIS IS THE KEY FOR CAMERA SCANNING
     const handleCameraScan = useCallback((code) => {
         console.log('📸 Camera scanned:', code);
         processScannedCode(code);

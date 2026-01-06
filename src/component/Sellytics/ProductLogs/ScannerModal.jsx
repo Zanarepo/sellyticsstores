@@ -1,14 +1,14 @@
 /**
  * Product Catalogue - Scanner Modal
- * Camera and external scanner interface
+ * Camera and external scanner interface with html5-qrcode
  */
 import React, { useRef, useEffect, useState } from 'react';
 import { 
-  X, Camera, Keyboard, Loader2, AlertCircle, 
+  X, Camera, Keyboard, AlertCircle, 
   Scan, RefreshCw, ToggleLeft, ToggleRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export default function ScannerModal({
   show,
@@ -21,17 +21,13 @@ export default function ScannerModal({
   videoRef,
   manualInput,
   setManualInput,
-  onScanSuccess,
   onManualSubmit,
   onClose,
-  scannedItems,
-  removeScannedItem,
-  updateScannedItemSize,
-  completeScanning,
-  scanningFor
+  handleCameraScan
 }) {
   const inputRef = useRef(null);
-  const codeReader = useRef(new BrowserMultiFormatReader());
+  const html5QrcodeRef = useRef(null);
+  const scannerContainerRef = useRef(null);
   const [scanError, setScanError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const lastScanRef = useRef('');
@@ -43,76 +39,105 @@ export default function ScannerModal({
     }
   }, [show, scannerMode]);
 
-  // Start barcode scanning when camera is ready
+  // Start barcode scanning when camera mode is active
   useEffect(() => {
-    if (!show || scannerMode !== 'camera' || !videoRef.current) {
+    if (!show || scannerMode !== 'camera') {
       return;
     }
 
     let mounted = true;
-    const reader = codeReader.current;
+    let scannerStarted = false;
+    const scannerId = 'barcode-scanner-container';
 
     const startBarcodeScanning = async () => {
-      // Wait for video to be ready
-      if (!videoRef.current || !videoRef.current.srcObject) {
-        return;
-      }
-
       try {
         setScanError(null);
-        setIsScanning(true);
-        console.log('Starting barcode detection...');
+        console.log('Starting html5-qrcode scanner...');
 
-        await reader.decodeFromVideoDevice(
-          undefined,
-          videoRef.current,
-          (result, err) => {
-            if (!mounted) return;
+        // Create scanner instance
+        const html5QrCode = new Html5Qrcode(scannerId);
+        html5QrcodeRef.current = html5QrCode;
 
-            if (result) {
-              const code = result.text;
-              console.log('Barcode detected:', code);
+        // Success callback when barcode is detected
+        const onScanSuccess = (decodedText, decodedResult) => {
+          if (!mounted) return;
 
-              // Debounce duplicate scans
-              if (code === lastScanRef.current) return;
-              lastScanRef.current = code;
-              setTimeout(() => (lastScanRef.current = ''), 1000);
+          console.log('Barcode detected:', decodedText);
 
-              // Trigger the scan callback
-              if (onScanSuccess) {
-                onScanSuccess(code);
-              }
+          // Debounce duplicate scans
+          if (decodedText === lastScanRef.current) return;
+          lastScanRef.current = decodedText;
+          setTimeout(() => (lastScanRef.current = ''), 1000);
 
-              // Camera feed stays on continuously - no reset
-            }
+          // Trigger the scan callback
+          if (handleCameraScan) {
+            handleCameraScan(decodedText);
           }
+        };
+
+        // Error callback (can be noisy, so we'll suppress it)
+        const onScanError = (errorMessage) => {
+          // Suppress continuous scanning errors
+        };
+
+        // Start scanning with rear camera
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 },
+            aspectRatio: 1.777778
+          },
+          onScanSuccess,
+          onScanError
         );
+
+        scannerStarted = true;
+        setIsScanning(true);
+        console.log('Scanner started successfully');
       } catch (err) {
-        console.error('Barcode scanning error:', err);
+        console.error('Failed to start scanner:', err);
         if (mounted) {
-          setScanError('Failed to start barcode detection');
+          setScanError('Failed to start camera scanner');
+          setIsScanning(false);
         }
       }
     };
 
-    // Wait a bit for camera stream to be fully ready
-    const timeout = setTimeout(startBarcodeScanning, 800);
+    startBarcodeScanning();
 
     return () => {
       mounted = false;
-      clearTimeout(timeout);
-      // Don't reset reader here - let it keep running
-    };
-  }, [show, scannerMode, onScanSuccess, videoRef]);
-
-  // Cleanup only when modal is fully closed
-  useEffect(() => {
-    if (!show) {
-      const reader = codeReader.current;
-      reader.reset();
       setIsScanning(false);
-    }
-  }, [show]);
+
+      // Cleanup scanner only if it was started
+      if (html5QrcodeRef.current && scannerStarted) {
+        html5QrcodeRef.current.stop()
+          .then(() => {
+            console.log('Scanner stopped successfully');
+            html5QrcodeRef.current = null;
+          })
+          .catch(err => {
+            console.log('Scanner already stopped');
+            html5QrcodeRef.current = null;
+          });
+      }
+    };
+  }, [show, scannerMode, handleCameraScan]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrcodeRef.current) {
+        // Check if scanner is running before stopping
+        const state = html5QrcodeRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          html5QrcodeRef.current.stop().catch(() => {});
+        }
+        html5QrcodeRef.current = null;
+      }
+    };
+  }, []);
 
   if (!show) return null;
 
@@ -205,42 +230,17 @@ export default function ScannerModal({
             {/* Camera View */}
             {scannerMode === 'camera' && (
               <div className="space-y-3">
-                {isLoading && (
-                  <div className="flex items-center justify-center gap-2 py-6 text-slate-500">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-sm">Starting camera...</span>
-                  </div>
-                )}
-
                 <div className="relative w-full aspect-video bg-slate-900 rounded-xl overflow-hidden">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted
+                  {/* html5-qrcode will inject its video element here */}
+                  <div 
+                    id="barcode-scanner-container"
+                    ref={scannerContainerRef}
+                    className="w-full h-full"
                   />
-                  {/* Scanner Frame */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-48 h-24 border-2 border-indigo-400 rounded-lg relative">
-                      <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-indigo-400" />
-                      <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-indigo-400" />
-                      <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-indigo-400" />
-                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-indigo-400" />
-                      {/* Scan line animation */}
-                      {isScanning && (
-                        <motion.div
-                          className="absolute left-2 right-2 h-0.5 bg-indigo-400"
-                          animate={{ top: ['10%', '90%', '10%'] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Scanning Status */}
+                  
+                  {/* Scanning Status Overlay */}
                   {isScanning && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2">
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2 z-10">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                       Scanning...
                     </div>

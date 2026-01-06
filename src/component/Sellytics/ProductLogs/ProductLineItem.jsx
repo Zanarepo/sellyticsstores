@@ -2,7 +2,7 @@
  * Product Line Item Component
  */
 import React from 'react';
-import { Trash2, Scan, Plus, Minus, Package } from 'lucide-react';
+import { Trash2, Scan, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ProductLineItem({

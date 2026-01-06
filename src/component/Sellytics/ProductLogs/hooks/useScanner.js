@@ -1,15 +1,9 @@
-/**
- * SwiftInventory - Scanner Hook (Refactored for Batch/Unique Product Support)
- * Manages external scanner and manual input for single or batch (unique) scanning.
- * The onScanSuccess callback now receives an ARRAY of scanned items upon completion.
- */
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 export default function useScanner({ onScanItem, onScanComplete }) {
 
-
     const [showScanner, setShowScanner] = useState(false);
-    const [scannerMode, setScannerMode] = useState('external'); // 'external' only
+    const [scannerMode, setScannerMode] = useState('external');
     const [continuousScan, setContinuousScan] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -17,119 +11,118 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     
     // --- BATCH SCANNING STATE ---
     const [scannedItems, setScannedItems] = useState([]);
-    // Tracks if we are scanning for 'unique' (multiple) or 'standard' (single) items
     const [scanningFor, setScanningFor] = useState('standard'); 
-    // ----------------------------
     
     const videoRef = useRef(null);
-    const lastScanRef = useRef(''); // Used for debounce
-const streamRef = useRef(null);
+    const lastScanRef = useRef('');
+    const streamRef = useRef(null);
 
-const startCamera = useCallback(async () => {
-  if (!videoRef.current) return;
+    const startCamera = useCallback(async () => {
+        if (!videoRef.current) return;
 
-  try {
-    setIsLoading(true);
-    setError(null);
+        try {
+            setIsLoading(true);
+            setError(null);
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
 
-    streamRef.current = stream;
-    videoRef.current.srcObject = stream;
-    await videoRef.current.play();
-  } catch (err) {
-    console.error('Camera error:', err);
-    setError('Unable to access camera');
-  } finally {
-    setIsLoading(false);
-  }
-}, []);
+            streamRef.current = stream;
+            videoRef.current.srcObject = stream;
+            await videoRef.current.play();
+        } catch (err) {
+            console.error('Camera error:', err);
+            setError('Unable to access camera');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
-const stopCamera = useCallback(() => {
-  if (streamRef.current) {
-    streamRef.current.getTracks().forEach(track => track.stop());
-    streamRef.current = null;
-  }
+    const stopCamera = useCallback(() => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
 
-  if (videoRef.current) {
-    videoRef.current.srcObject = null;
-  }
-}, []);
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    }, []);
 
-    
+    // Close scanner
+    const closeScanner = useCallback(() => {
+        stopCamera();
+        setShowScanner(false);
+        setManualInput('');
+        setError(null);
+        setScannedItems([]);
+        setScanningFor('standard');
+    }, [stopCamera]);
+
+    // --- Core logic to handle a single scanned code ---
+    const processScannedCode = useCallback((barcode) => {
+        const trimmedCode = barcode.trim();
+        if (!trimmedCode) return;
+
+        // debounce
+        if (trimmedCode === lastScanRef.current) return;
+        lastScanRef.current = trimmedCode;
+        setTimeout(() => (lastScanRef.current = ''), 500);
+
+        setScannedItems(prev => {
+            // duplicate protection (unique products)
+            if (scanningFor === 'unique' && prev.some(i => i.code === trimmedCode)) {
+                setError('Duplicate item scanned');
+                return prev;
+            }
+
+            const newItem = {
+                code: trimmedCode,
+                size: '',
+                id: Date.now() + Math.random(),
+            };
+
+            setError(null);
+
+            // LIVE PUSH (updates ProductForm immediately)
+            onScanItem?.(newItem);
+
+            // NON-UNIQUE → auto complete
+            if (scanningFor === 'standard') {
+                setTimeout(() => {
+                    onScanComplete?.([newItem]);
+                    closeScanner();
+                }, 0);
+                return [newItem];
+            }
+
+            // UNIQUE → keep accumulating
+            return [...prev, newItem];
+        });
+    }, [scanningFor, onScanItem, onScanComplete, closeScanner]);
+
     // --- MODAL/FLOW ACTIONS ---
-
-    // Open scanner now accepts the type ('unique' or 'standard')
     const openScanner = useCallback((type = 'standard', mode = 'external') => {
         setScanningFor(type);
-        setScannedItems([]); // Reset items when opening
+        setScannedItems([]);
         setScannerMode(mode);
         setShowScanner(true);
         setError(null);
         setManualInput('');
     }, []);
 
-    // Close scanner
-  const closeScanner = useCallback(() => {
-  stopCamera();
-  setShowScanner(false);
-  setManualInput('');
-  setError(null);
-  setScannedItems([]);
-  setScanningFor('standard');
-}, [stopCamera]);
+    // Camera scan handler
+    const handleCameraScan = useCallback((code) => {
+        console.log('📸 Camera scanned:', code);
+        processScannedCode(code);
+    }, [processScannedCode]);
 
-
-    // --- Core logic to handle a single scanned code ---
-   const processScannedCode = useCallback((barcode) => {
-  const trimmedCode = barcode.trim();
-  if (!trimmedCode) return;
-
-  // debounce
-  if (trimmedCode === lastScanRef.current) return;
-  lastScanRef.current = trimmedCode;
-  setTimeout(() => (lastScanRef.current = ''), 500);
-
-  setScannedItems(prev => {
-    // 🔴 duplicate protection (unique products)
-    if (scanningFor === 'unique' && prev.some(i => i.code === trimmedCode)) {
-      setError('Duplicate item scanned');
-      return prev;
-    }
-
-    const newItem = {
-      code: trimmedCode,
-      size: '',
-      id: Date.now() + Math.random(),
-    };
-
-    setError(null);
-
-    // ✅ LIVE PUSH (updates ProductForm immediately)
-    onScanItem?.(newItem);
-
-    // ✅ NON-UNIQUE → auto complete
-    if (scanningFor === 'standard') {
-      setTimeout(() => {
-        onScanComplete?.([newItem]);
-        closeScanner();
-      }, 0);
-      return [newItem];
-    }
-
-    // ✅ UNIQUE → keep accumulating
-    return [...prev, newItem];
-  });
-}, [scanningFor, onScanItem, onScanComplete, closeScanner]);
-
-    
     // --- External Scanner Handler (useEffect) ---
     useEffect(() => {
         if (!showScanner || scannerMode !== 'external') return;
@@ -140,7 +133,7 @@ const stopCamera = useCallback(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Enter') {
                 if (buffer.length > 0) {
-                    processScannedCode(buffer); // <-- Calls new processing function
+                    processScannedCode(buffer);
                     buffer = '';
                 }
             } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -159,24 +152,21 @@ const stopCamera = useCallback(() => {
             window.removeEventListener('keydown', handleKeyDown);
             clearTimeout(timeout);
         };
-    }, [showScanner, scannerMode, processScannedCode]); // Dependencies updated
+    }, [showScanner, scannerMode, processScannedCode]);
 
-
-
+    // Camera management
     useEffect(() => {
-  if (!showScanner || scannerMode !== 'camera') {
-    stopCamera();
-    return;
-  }
+        if (!showScanner || scannerMode !== 'camera') {
+            stopCamera();
+            return;
+        }
 
-  startCamera();
+        startCamera();
 
-  return () => {
-    stopCamera();
-  };
-}, [showScanner, scannerMode, startCamera, stopCamera]);
-
-
+        return () => {
+            stopCamera();
+        };
+    }, [showScanner, scannerMode, startCamera, stopCamera]);
 
     // --- MANUAL SUBMIT HANDLER ---
     const handleManualSubmit = useCallback(() => {
@@ -185,10 +175,9 @@ const stopCamera = useCallback(() => {
             return;
         }
         
-        processScannedCode(manualInput.trim()); // <-- Calls new processing function
+        processScannedCode(manualInput.trim());
         setManualInput('');
     }, [manualInput, processScannedCode]);
-
 
     // --- BATCH MANAGEMENT ACTIONS ---
     const removeScannedItem = useCallback((id) => {
@@ -201,14 +190,10 @@ const stopCamera = useCallback(() => {
         ));
     }, []);
 
-
-
-
-
     const completeScanning = useCallback(() => {
-  onScanComplete?.(scannedItems);
-  closeScanner();
-}, [scannedItems, onScanComplete, closeScanner]);
+        onScanComplete?.(scannedItems);
+        closeScanner();
+    }, [scannedItems, onScanComplete, closeScanner]);
 
     // --- EXPORTS ---
     return {
@@ -223,6 +208,7 @@ const stopCamera = useCallback(() => {
         videoRef,
         manualInput,
         setManualInput,
+        handleCameraScan,
         
         // BATCH/UI State & Actions
         scannedItems,

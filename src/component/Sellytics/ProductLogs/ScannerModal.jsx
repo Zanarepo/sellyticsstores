@@ -22,6 +22,7 @@ export default function ScannerModal({
   manualInput,
   setManualInput,
   onManualSubmit,
+  onScanSuccess, // NEW: callback for successful scan
   onClose
 }) {
   const inputRef = useRef(null);
@@ -29,84 +30,119 @@ export default function ScannerModal({
   const [scanError, setScanError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const lastScanRef = useRef('');
+  const scanningActiveRef = useRef(false);
 
   // Auto-focus input when modal opens
   useEffect(() => {
-    if (show && inputRef.current) {
+    if (show && inputRef.current && scannerMode === 'external') {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [show, scannerMode]);
 
-  // Start barcode scanning when camera is ready
+  // Start barcode scanning when camera is ready and video is playing
   useEffect(() => {
-    if (!show || scannerMode !== 'camera' || !videoRef.current) {
+    if (!show || scannerMode !== 'camera' || !videoRef.current || scanningActiveRef.current) {
       return;
     }
 
     let mounted = true;
     const reader = codeReader.current;
+    const video = videoRef.current;
 
     const startBarcodeScanning = async () => {
-      // Wait for video to be ready
-      if (!videoRef.current || !videoRef.current.srcObject) {
+      // Wait for video to actually be playing
+      if (!video || !video.srcObject || video.readyState < 2) {
+        console.log('Video not ready yet, waiting...');
         return;
       }
 
       try {
         setScanError(null);
         setIsScanning(true);
-        console.log('Starting barcode detection...');
+        scanningActiveRef.current = true;
+        console.log('🎥 Starting barcode detection...');
 
         await reader.decodeFromVideoDevice(
           undefined,
-          videoRef.current,
+          video,
           (result, err) => {
-            if (!mounted) return;
+            if (!mounted || !scanningActiveRef.current) return;
 
             if (result) {
               const code = result.text;
-              console.log('Barcode detected:', code);
+              console.log('✅ Barcode detected:', code);
 
               // Debounce duplicate scans
-              if (code === lastScanRef.current) return;
+              if (code === lastScanRef.current) {
+                console.log('⏭️ Duplicate scan, ignoring');
+                return;
+              }
+              
               lastScanRef.current = code;
               setTimeout(() => (lastScanRef.current = ''), 1000);
 
               // Trigger the scan callback
-              onManualSubmit({ preventDefault: () => {} }, code);
+              if (onScanSuccess) {
+                onScanSuccess(code);
+              }
 
               // If not continuous scan, stop after first scan
               if (!continuousScan) {
+                console.log('🛑 Single scan mode - stopping scanner');
                 reader.reset();
+                scanningActiveRef.current = false;
                 setIsScanning(false);
               }
             }
           }
         );
       } catch (err) {
-        console.error('Barcode scanning error:', err);
+        console.error('❌ Barcode scanning error:', err);
         if (mounted) {
-          setScanError('Failed to start barcode detection');
+          setScanError('Failed to start barcode detection: ' + err.message);
+          scanningActiveRef.current = false;
+          setIsScanning(false);
         }
       }
     };
 
-    // Wait a bit for camera stream to be fully ready
-    const timeout = setTimeout(startBarcodeScanning, 800);
+    // Listen for video ready events
+    const handleVideoReady = () => {
+      console.log('📹 Video is ready, starting scanner...');
+      startBarcodeScanning();
+    };
+
+    // Check if video is already playing
+    if (video.readyState >= 2) {
+      startBarcodeScanning();
+    } else {
+      // Wait for video to be ready
+      video.addEventListener('loadeddata', handleVideoReady);
+      video.addEventListener('playing', handleVideoReady);
+    }
 
     return () => {
       mounted = false;
-      clearTimeout(timeout);
-      reader.reset();
-      setIsScanning(false);
+      video.removeEventListener('loadeddata', handleVideoReady);
+      video.removeEventListener('playing', handleVideoReady);
+      
+      // Only reset if we're actually changing modes or closing
+      if (!show || scannerMode !== 'camera') {
+        console.log('🧹 Cleaning up barcode scanner');
+        reader.reset();
+        scanningActiveRef.current = false;
+        setIsScanning(false);
+      }
     };
-  }, [show, scannerMode, continuousScan, onManualSubmit, videoRef]);
+  }, [show, scannerMode, continuousScan, onScanSuccess, videoRef]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount or mode change
   useEffect(() => {
     const reader = codeReader.current;
     return () => {
+      console.log('🧹 Component unmounting, cleaning up');
       reader.reset();
+      scanningActiveRef.current = false;
     };
   }, []);
 
@@ -238,10 +274,14 @@ export default function ScannerModal({
                   {isScanning && (
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                      Scanning...
+                      Ready to scan
                     </div>
                   )}
                 </div>
+
+                <p className="text-xs text-center text-slate-500">
+                  Position barcode within the frame
+                </p>
               </div>
             )}
 

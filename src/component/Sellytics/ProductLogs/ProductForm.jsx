@@ -250,6 +250,7 @@ const handleSubmit = async (e) => {
     videoRef={scanner.videoRef}
     manualInput={scanner.manualInput}
     setManualInput={scanner.setManualInput}
+    onScanSuccess={scanner.handleCameraScan}
     onManualSubmit={scanner.handleManualSubmit}
     scannedItems={scanner.scannedItems}
     removeScannedItem={scanner.removeScannedItem}

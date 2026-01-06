@@ -31,13 +31,54 @@ export default function ScannerModal({
   const [scanError, setScanError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const lastScanRef = useRef('');
+  const lastScanTimeRef = useRef(0);
+  const isMountedRef = useRef(true);
+  const isStoppingRef = useRef(false);
 
   // Auto-focus input when modal opens
   useEffect(() => {
-    if (show && inputRef.current) {
+    if (show && inputRef.current && scannerMode === 'external') {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [show, scannerMode]);
+
+  // Safe scanner stop function
+  const stopScanner = async () => {
+    if (isStoppingRef.current) {
+      console.log('⏸️ Already stopping scanner, skipping...');
+      return;
+    }
+
+    if (!html5QrcodeRef.current) {
+      console.log('⏸️ No scanner instance to stop');
+      return;
+    }
+
+    try {
+      isStoppingRef.current = true;
+      const scanner = html5QrcodeRef.current;
+      
+      // Check scanner state before stopping
+      const state = scanner.getState();
+      console.log('Scanner state:', state);
+      
+      // Only stop if scanner is actually scanning (state 2)
+      if (state === 2) {
+        await scanner.stop();
+        console.log('✅ Scanner stopped successfully');
+      } else {
+        console.log('⏸️ Scanner not in scanning state');
+      }
+    } catch (err) {
+      console.log('ℹ️ Scanner stop:', err.message);
+    } finally {
+      html5QrcodeRef.current = null;
+      isStoppingRef.current = false;
+      if (isMountedRef.current) {
+        setIsScanning(false);
+      }
+    }
+  };
 
   // Start barcode scanning when camera mode is active
   useEffect(() => {
@@ -46,13 +87,21 @@ export default function ScannerModal({
     }
 
     let mounted = true;
-    let scannerStarted = false;
+    isMountedRef.current = true;
     const scannerId = 'barcode-scanner-container';
 
     const startBarcodeScanning = async () => {
       try {
         setScanError(null);
-        console.log('Starting html5-qrcode scanner...');
+        console.log('🚀 Starting html5-qrcode scanner...');
+
+        // Wait for DOM element
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const element = document.getElementById(scannerId);
+        if (!element) {
+          throw new Error('Scanner container not found');
+        }
 
         // Create scanner instance
         const html5QrCode = new Html5Qrcode(scannerId);
@@ -60,45 +109,69 @@ export default function ScannerModal({
 
         // Success callback when barcode is detected
         const onScanSuccess = (decodedText, decodedResult) => {
-          if (!mounted) return;
+          if (!mounted || !isMountedRef.current) return;
 
-          console.log('Barcode detected:', decodedText);
+          const now = Date.now();
+          
+          // Enhanced debounce: prevent duplicate scans within 1 second
+          if (decodedText === lastScanRef.current && (now - lastScanTimeRef.current) < 1000) {
+            console.log('⏭️ Skipping duplicate scan:', decodedText);
+            return;
+          }
 
-          // Debounce duplicate scans
-          if (decodedText === lastScanRef.current) return;
           lastScanRef.current = decodedText;
-          setTimeout(() => (lastScanRef.current = ''), 1000);
+          lastScanTimeRef.current = now;
+
+          console.log('✅ Barcode detected:', decodedText);
 
           // Trigger the scan callback
           if (handleCameraScan) {
             handleCameraScan(decodedText);
           }
+
+          // If NOT continuous scan, the parent will close the modal
+          // We don't stop the scanner here to avoid state transition errors
         };
 
-        // Error callback (can be noisy, so we'll suppress it)
+        // Error callback (suppress noisy scanning errors)
         const onScanError = (errorMessage) => {
-          // Suppress continuous scanning errors
+          // Suppress continuous scanning errors to avoid console spam
+        };
+
+        // Configure scanner settings for better mobile performance
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 150 },
+          aspectRatio: 1.777778,
+          formatsToSupport: [
+            'EAN_13',
+            'EAN_8', 
+            'UPC_A',
+            'UPC_E',
+            'CODE_128',
+            'CODE_39',
+            'ITF',
+            'QR_CODE',
+            'DATA_MATRIX'
+          ]
         };
 
         // Start scanning with rear camera
         await html5QrCode.start(
           { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 150 },
-            aspectRatio: 1.777778
-          },
+          config,
           onScanSuccess,
           onScanError
         );
 
-        scannerStarted = true;
-        setIsScanning(true);
-        console.log('Scanner started successfully');
+        if (mounted && isMountedRef.current) {
+          setIsScanning(true);
+          console.log('✅ Scanner started successfully');
+        }
       } catch (err) {
-        console.error('Failed to start scanner:', err);
-        if (mounted) {
-          setScanError('Failed to start camera scanner');
+        console.error('❌ Failed to start scanner:', err);
+        if (mounted && isMountedRef.current) {
+          setScanError('Failed to start camera. Please check permissions.');
           setIsScanning(false);
         }
       }
@@ -108,36 +181,36 @@ export default function ScannerModal({
 
     return () => {
       mounted = false;
-      setIsScanning(false);
-
-      // Cleanup scanner only if it was started
-      if (html5QrcodeRef.current && scannerStarted) {
-        html5QrcodeRef.current.stop()
-          .then(() => {
-            console.log('Scanner stopped successfully');
-            html5QrcodeRef.current = null;
-          })
-          .catch(err => {
-            console.log('Scanner already stopped');
-            html5QrcodeRef.current = null;
-          });
-      }
+      isMountedRef.current = false;
+      stopScanner();
     };
   }, [show, scannerMode, handleCameraScan]);
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
-      if (html5QrcodeRef.current) {
-        // Check if scanner is running before stopping
-        const state = html5QrcodeRef.current.getState();
-        if (state === 2) { // 2 = SCANNING state
-          html5QrcodeRef.current.stop().catch(() => {});
-        }
-        html5QrcodeRef.current = null;
-      }
+      isMountedRef.current = false;
+      stopScanner();
     };
   }, []);
+
+  // Safe close handler
+  const handleClose = () => {
+    console.log('🚪 Closing modal...');
+    isMountedRef.current = false;
+    stopScanner().then(() => {
+      onClose();
+    });
+  };
+
+  // Safe background click handler
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
 
   if (!show) return null;
 
@@ -148,17 +221,17 @@ export default function ScannerModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-        onClick={onClose}
+        onClick={handleBackdropClick}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
           onClick={e => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b dark:border-slate-800">
+          {/* Header - Fixed */}
+          <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
                 <Scan className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -173,14 +246,15 @@ export default function ScannerModal({
               </div>
             </div>
             <button 
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="p-5 space-y-5">
+          {/* Body - Scrollable */}
+          <div className="p-5 space-y-5 overflow-y-auto flex-1">
             {/* Continuous Scan Toggle */}
             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2">
@@ -245,6 +319,20 @@ export default function ScannerModal({
                       Scanning...
                     </div>
                   )}
+
+                  {/* Instructions Overlay */}
+                  {!isScanning && !scanError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50">
+                      <div className="text-center text-white px-4">
+                        <Camera className="w-12 h-12 mx-auto mb-2 opacity-75" />
+                        <p className="text-sm">Initializing camera...</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-xs text-center text-slate-500">
+                  Position barcode within the scanning area
                 </div>
               </div>
             )}
@@ -298,7 +386,8 @@ export default function ScannerModal({
                 />
                 <button
                   onClick={onManualSubmit}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                  disabled={!manualInput.trim()}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   Add
                 </button>
@@ -306,10 +395,10 @@ export default function ScannerModal({
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          {/* Footer - Fixed */}
+          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium"
             >
               Done Scanning

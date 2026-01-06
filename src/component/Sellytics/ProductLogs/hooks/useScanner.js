@@ -15,6 +15,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     
     const videoRef = useRef(null);
     const lastScanRef = useRef('');
+    const lastScanTimeRef = useRef(0);
     const streamRef = useRef(null);
 
     const startCamera = useCallback(async () => {
@@ -70,15 +71,24 @@ export default function useScanner({ onScanItem, onScanComplete }) {
         const trimmedCode = barcode.trim();
         if (!trimmedCode) return;
 
-        // debounce
-        if (trimmedCode === lastScanRef.current) return;
+        const now = Date.now();
+
+        // Enhanced debounce with timestamp check
+        if (trimmedCode === lastScanRef.current && (now - lastScanTimeRef.current) < 1000) {
+            console.log('⏭️ Debounced duplicate:', trimmedCode);
+            return;
+        }
+
         lastScanRef.current = trimmedCode;
-        setTimeout(() => (lastScanRef.current = ''), 500);
+        lastScanTimeRef.current = now;
+
+        console.log('✅ Processing scanned code:', trimmedCode);
 
         setScannedItems(prev => {
             // duplicate protection (unique products)
             if (scanningFor === 'unique' && prev.some(i => i.code === trimmedCode)) {
                 setError('Duplicate item scanned');
+                setTimeout(() => setError(null), 2000);
                 return prev;
             }
 
@@ -91,24 +101,32 @@ export default function useScanner({ onScanItem, onScanComplete }) {
             setError(null);
 
             // LIVE PUSH (updates ProductForm immediately)
+            console.log('📤 Calling onScanItem with:', newItem);
             onScanItem?.(newItem);
 
-            // NON-UNIQUE → auto complete
-            if (scanningFor === 'standard') {
+            // STANDARD (NON-UNIQUE) → auto complete immediately
+            if (scanningFor === 'standard' && !continuousScan) {
+                console.log('🎯 Standard mode (single scan) - auto-completing');
                 setTimeout(() => {
                     onScanComplete?.([newItem]);
                     closeScanner();
-                }, 0);
+                }, 500); // Delay to ensure scan processing completes
                 return [newItem];
+            } else if (scanningFor === 'standard' && continuousScan) {
+                // Continuous mode - keep scanning, don't auto-close
+                console.log('🔄 Continuous mode - keeping scanner open');
+                return [...prev, newItem];
             }
 
             // UNIQUE → keep accumulating
+            console.log('📋 Unique mode - accumulating items');
             return [...prev, newItem];
         });
-    }, [scanningFor, onScanItem, onScanComplete, closeScanner]);
+    }, [scanningFor, onScanItem, onScanComplete, closeScanner, continuousScan]);
 
     // --- MODAL/FLOW ACTIONS ---
     const openScanner = useCallback((type = 'standard', mode = 'external') => {
+        console.log('🔓 Opening scanner:', { type, mode });
         setScanningFor(type);
         setScannedItems([]);
         setScannerMode(mode);
@@ -119,7 +137,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
     // Camera scan handler - THIS IS THE KEY FOR CAMERA SCANNING
     const handleCameraScan = useCallback((code) => {
-        console.log('📸 Camera scanned:', code);
+        console.log('📸 Camera scanned code:', code);
         processScannedCode(code);
     }, [processScannedCode]);
 
@@ -127,41 +145,56 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     useEffect(() => {
         if (!showScanner || scannerMode !== 'external') return;
 
+        console.log('⌨️ External scanner listener active');
         let buffer = '';
         let timeout = null;
 
         const handleKeyDown = (e) => {
+            // Ignore if typing in an input field (except our manual input)
+            const activeElement = document.activeElement;
+            const isInputField = activeElement && (
+                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'TEXTAREA'
+            );
+
             if (e.key === 'Enter') {
                 if (buffer.length > 0) {
+                    console.log('⌨️ External scanner captured:', buffer);
                     processScannedCode(buffer);
                     buffer = '';
                 }
             } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                buffer += e.key;
-                
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    buffer = '';
-                }, 100);
+                // Only capture if not in an input field OR if it's very rapid typing (barcode scanner)
+                if (!isInputField || timeout === null) {
+                    buffer += e.key;
+                    
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        buffer = '';
+                    }, 100);
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         
         return () => {
+            console.log('🧹 External scanner listener removed');
             window.removeEventListener('keydown', handleKeyDown);
             clearTimeout(timeout);
         };
     }, [showScanner, scannerMode, processScannedCode]);
 
-    // Camera management
+    // Camera management - Note: html5-qrcode handles its own camera now
+    // This is kept for backward compatibility but not actively used
     useEffect(() => {
         if (!showScanner || scannerMode !== 'camera') {
             stopCamera();
             return;
         }
 
-        startCamera();
+        // html5-qrcode manages the camera itself
+        // This effect is just for cleanup
 
         return () => {
             stopCamera();
@@ -172,9 +205,11 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     const handleManualSubmit = useCallback(() => {
         if (!manualInput.trim()) {
             setError('Please enter a barcode or ID');
+            setTimeout(() => setError(null), 2000);
             return;
         }
         
+        console.log('✍️ Manual input:', manualInput.trim());
         processScannedCode(manualInput.trim());
         setManualInput('');
     }, [manualInput, processScannedCode]);
@@ -191,6 +226,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     }, []);
 
     const completeScanning = useCallback(() => {
+        console.log('✅ Completing scan with items:', scannedItems);
         onScanComplete?.(scannedItems);
         closeScanner();
     }, [scannedItems, onScanComplete, closeScanner]);
@@ -208,7 +244,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
         videoRef,
         manualInput,
         setManualInput,
-        handleCameraScan,
+        handleCameraScan, // THIS IS CRITICAL - must be passed to ScannerModal
         
         // BATCH/UI State & Actions
         scannedItems,

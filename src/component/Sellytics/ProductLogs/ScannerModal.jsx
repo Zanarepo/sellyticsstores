@@ -2,13 +2,13 @@
  * Product Catalogue - Scanner Modal
  * Camera and external scanner interface
  */
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { 
   X, Camera, Keyboard, Loader2, AlertCircle, 
   Scan, RefreshCw, ToggleLeft, ToggleRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 export default function ScannerModal({
   show,
@@ -25,6 +25,10 @@ export default function ScannerModal({
   onClose
 }) {
   const inputRef = useRef(null);
+  const codeReader = useRef(new BrowserMultiFormatReader());
+  const [scanError, setScanError] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const lastScanRef = useRef('');
 
   // Auto-focus input when modal opens
   useEffect(() => {
@@ -32,6 +36,79 @@ export default function ScannerModal({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [show, scannerMode]);
+
+  // Start barcode scanning when camera is ready
+  useEffect(() => {
+    if (!show || scannerMode !== 'camera' || !videoRef.current) {
+      return;
+    }
+
+    let mounted = true;
+    const reader = codeReader.current;
+
+    const startBarcodeScanning = async () => {
+      // Wait for video to be ready
+      if (!videoRef.current || !videoRef.current.srcObject) {
+        return;
+      }
+
+      try {
+        setScanError(null);
+        setIsScanning(true);
+        console.log('Starting barcode detection...');
+
+        await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result, err) => {
+            if (!mounted) return;
+
+            if (result) {
+              const code = result.text;
+              console.log('Barcode detected:', code);
+
+              // Debounce duplicate scans
+              if (code === lastScanRef.current) return;
+              lastScanRef.current = code;
+              setTimeout(() => (lastScanRef.current = ''), 1000);
+
+              // Trigger the scan callback
+              onManualSubmit({ preventDefault: () => {} }, code);
+
+              // If not continuous scan, stop after first scan
+              if (!continuousScan) {
+                reader.reset();
+                setIsScanning(false);
+              }
+            }
+          }
+        );
+      } catch (err) {
+        console.error('Barcode scanning error:', err);
+        if (mounted) {
+          setScanError('Failed to start barcode detection');
+        }
+      }
+    };
+
+    // Wait a bit for camera stream to be fully ready
+    const timeout = setTimeout(startBarcodeScanning, 800);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeout);
+      reader.reset();
+      setIsScanning(false);
+    };
+  }, [show, scannerMode, continuousScan, onManualSubmit, videoRef]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    const reader = codeReader.current;
+    return () => {
+      reader.reset();
+    };
+  }, []);
 
   if (!show) return null;
 
@@ -147,13 +224,23 @@ export default function ScannerModal({
                       <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-indigo-400" />
                       <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-indigo-400" />
                       {/* Scan line animation */}
-                      <motion.div
-                        className="absolute left-2 right-2 h-0.5 bg-indigo-400"
-                        animate={{ top: ['10%', '90%', '10%'] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                      />
+                      {isScanning && (
+                        <motion.div
+                          className="absolute left-2 right-2 h-0.5 bg-indigo-400"
+                          animate={{ top: ['10%', '90%', '10%'] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                      )}
                     </div>
                   </div>
+
+                  {/* Scanning Status */}
+                  {isScanning && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                      Scanning...
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -178,10 +265,10 @@ export default function ScannerModal({
             )}
 
             {/* Error */}
-            {error && (
+            {(error || scanError) && (
               <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
                 <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                <p className="text-sm text-red-700 dark:text-red-300">{error || scanError}</p>
               </div>
             )}
 

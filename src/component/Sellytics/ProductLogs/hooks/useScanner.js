@@ -15,7 +15,6 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     
     const videoRef = useRef(null);
     const lastScanRef = useRef('');
-    const lastScanTimeRef = useRef(0);
     const streamRef = useRef(null);
 
     const startCamera = useCallback(async () => {
@@ -71,24 +70,17 @@ export default function useScanner({ onScanItem, onScanComplete }) {
         const trimmedCode = barcode.trim();
         if (!trimmedCode) return;
 
-        const now = Date.now();
-
-        // Enhanced debounce with timestamp check
-        if (trimmedCode === lastScanRef.current && (now - lastScanTimeRef.current) < 1000) {
-            console.log('⏭️ Debounced duplicate:', trimmedCode);
-            return;
-        }
-
+        // debounce
+        if (trimmedCode === lastScanRef.current) return;
         lastScanRef.current = trimmedCode;
-        lastScanTimeRef.current = now;
+        setTimeout(() => (lastScanRef.current = ''), 500);
 
-        console.log('✅ Processing scanned code:', trimmedCode);
+        console.log('Processing code:', trimmedCode, 'continuousScan:', continuousScan);
 
         setScannedItems(prev => {
             // duplicate protection (unique products)
             if (scanningFor === 'unique' && prev.some(i => i.code === trimmedCode)) {
                 setError('Duplicate item scanned');
-                setTimeout(() => setError(null), 2000);
                 return prev;
             }
 
@@ -104,18 +96,22 @@ export default function useScanner({ onScanItem, onScanComplete }) {
             console.log('📤 Calling onScanItem with:', newItem);
             onScanItem?.(newItem);
 
-            // STANDARD (NON-UNIQUE) → auto complete immediately
-            if (scanningFor === 'standard' && !continuousScan) {
-                console.log('🎯 Standard mode (single scan) - auto-completing');
-                setTimeout(() => {
+            // STANDARD MODE (non-unique)
+            if (scanningFor === 'standard') {
+                // Check continuous scan setting
+                if (!continuousScan) {
+                    // Single scan mode - auto-close
+                    console.log('🎯 Single scan - closing scanner');
+                    setTimeout(() => {
+                        onScanComplete?.([newItem]);
+                        closeScanner();
+                    }, 100);
+                } else {
+                    // Continuous mode - keep scanner open
+                    console.log('🔄 Continuous scan - keeping scanner open');
                     onScanComplete?.([newItem]);
-                    closeScanner();
-                }, 500); // Delay to ensure scan processing completes
+                }
                 return [newItem];
-            } else if (scanningFor === 'standard' && continuousScan) {
-                // Continuous mode - keep scanning, don't auto-close
-                console.log('🔄 Continuous mode - keeping scanner open');
-                return [...prev, newItem];
             }
 
             // UNIQUE → keep accumulating
@@ -126,7 +122,6 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
     // --- MODAL/FLOW ACTIONS ---
     const openScanner = useCallback((type = 'standard', mode = 'external') => {
-        console.log('🔓 Opening scanner:', { type, mode });
         setScanningFor(type);
         setScannedItems([]);
         setScannerMode(mode);
@@ -137,7 +132,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
     // Camera scan handler - THIS IS THE KEY FOR CAMERA SCANNING
     const handleCameraScan = useCallback((code) => {
-        console.log('📸 Camera scanned code:', code);
+        console.log('📸 Camera scanned:', code);
         processScannedCode(code);
     }, [processScannedCode]);
 
@@ -145,56 +140,41 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     useEffect(() => {
         if (!showScanner || scannerMode !== 'external') return;
 
-        console.log('⌨️ External scanner listener active');
         let buffer = '';
         let timeout = null;
 
         const handleKeyDown = (e) => {
-            // Ignore if typing in an input field (except our manual input)
-            const activeElement = document.activeElement;
-            const isInputField = activeElement && (
-                activeElement.tagName === 'INPUT' || 
-                activeElement.tagName === 'TEXTAREA'
-            );
-
             if (e.key === 'Enter') {
                 if (buffer.length > 0) {
-                    console.log('⌨️ External scanner captured:', buffer);
                     processScannedCode(buffer);
                     buffer = '';
                 }
             } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                // Only capture if not in an input field OR if it's very rapid typing (barcode scanner)
-                if (!isInputField || timeout === null) {
-                    buffer += e.key;
-                    
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => {
-                        buffer = '';
-                    }, 100);
-                }
+                buffer += e.key;
+                
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    buffer = '';
+                }, 100);
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         
         return () => {
-            console.log('🧹 External scanner listener removed');
             window.removeEventListener('keydown', handleKeyDown);
             clearTimeout(timeout);
         };
     }, [showScanner, scannerMode, processScannedCode]);
 
-    // Camera management - Note: html5-qrcode handles its own camera now
-    // This is kept for backward compatibility but not actively used
+    // Camera management
     useEffect(() => {
         if (!showScanner || scannerMode !== 'camera') {
             stopCamera();
             return;
         }
 
-        // html5-qrcode manages the camera itself
-        // This effect is just for cleanup
+        startCamera();
 
         return () => {
             stopCamera();
@@ -205,11 +185,9 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     const handleManualSubmit = useCallback(() => {
         if (!manualInput.trim()) {
             setError('Please enter a barcode or ID');
-            setTimeout(() => setError(null), 2000);
             return;
         }
         
-        console.log('✍️ Manual input:', manualInput.trim());
         processScannedCode(manualInput.trim());
         setManualInput('');
     }, [manualInput, processScannedCode]);
@@ -226,7 +204,6 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     }, []);
 
     const completeScanning = useCallback(() => {
-        console.log('✅ Completing scan with items:', scannedItems);
         onScanComplete?.(scannedItems);
         closeScanner();
     }, [scannedItems, onScanComplete, closeScanner]);
@@ -241,10 +218,9 @@ export default function useScanner({ onScanItem, onScanComplete }) {
         setContinuousScan,
         isLoading,
         error,
-        videoRef,
         manualInput,
         setManualInput,
-        handleCameraScan, // THIS IS CRITICAL - must be passed to ScannerModal
+        handleCameraScan,
         
         // BATCH/UI State & Actions
         scannedItems,

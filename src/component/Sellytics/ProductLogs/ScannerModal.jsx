@@ -16,9 +16,9 @@ export default function ScannerModal({
   setScannerMode,
   continuousScan,
   setContinuousScan,
-  isLoading,
+
   error,
-  videoRef,
+
   manualInput,
   setManualInput,
   onManualSubmit,
@@ -32,53 +32,13 @@ export default function ScannerModal({
   const [isScanning, setIsScanning] = useState(false);
   const lastScanRef = useRef('');
   const lastScanTimeRef = useRef(0);
-  const isMountedRef = useRef(true);
-  const isStoppingRef = useRef(false);
 
   // Auto-focus input when modal opens
   useEffect(() => {
-    if (show && inputRef.current && scannerMode === 'external') {
+    if (show && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [show, scannerMode]);
-
-  // Safe scanner stop function
-  const stopScanner = async () => {
-    if (isStoppingRef.current) {
-      console.log('⏸️ Already stopping scanner, skipping...');
-      return;
-    }
-
-    if (!html5QrcodeRef.current) {
-      console.log('⏸️ No scanner instance to stop');
-      return;
-    }
-
-    try {
-      isStoppingRef.current = true;
-      const scanner = html5QrcodeRef.current;
-      
-      // Check scanner state before stopping
-      const state = scanner.getState();
-      console.log('Scanner state:', state);
-      
-      // Only stop if scanner is actually scanning (state 2)
-      if (state === 2) {
-        await scanner.stop();
-        console.log('✅ Scanner stopped successfully');
-      } else {
-        console.log('⏸️ Scanner not in scanning state');
-      }
-    } catch (err) {
-      console.log('ℹ️ Scanner stop:', err.message);
-    } finally {
-      html5QrcodeRef.current = null;
-      isStoppingRef.current = false;
-      if (isMountedRef.current) {
-        setIsScanning(false);
-      }
-    }
-  };
 
   // Start barcode scanning when camera mode is active
   useEffect(() => {
@@ -87,21 +47,13 @@ export default function ScannerModal({
     }
 
     let mounted = true;
-    isMountedRef.current = true;
+    let scannerStarted = false;
     const scannerId = 'barcode-scanner-container';
 
     const startBarcodeScanning = async () => {
       try {
         setScanError(null);
-        console.log('🚀 Starting html5-qrcode scanner...');
-
-        // Wait for DOM element
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const element = document.getElementById(scannerId);
-        if (!element) {
-          throw new Error('Scanner container not found');
-        }
+        console.log('Starting html5-qrcode scanner...');
 
         // Create scanner instance
         const html5QrCode = new Html5Qrcode(scannerId);
@@ -109,39 +61,35 @@ export default function ScannerModal({
 
         // Success callback when barcode is detected
         const onScanSuccess = (decodedText, decodedResult) => {
-          if (!mounted || !isMountedRef.current) return;
+          if (!mounted) return;
+
+          console.log('Barcode detected:', decodedText);
 
           const now = Date.now();
           
-          // Enhanced debounce: prevent duplicate scans within 1 second
+          // Debounce duplicate scans
           if (decodedText === lastScanRef.current && (now - lastScanTimeRef.current) < 1000) {
-            console.log('⏭️ Skipping duplicate scan:', decodedText);
             return;
           }
-
+          
           lastScanRef.current = decodedText;
           lastScanTimeRef.current = now;
-
-          console.log('✅ Barcode detected:', decodedText);
 
           // Trigger the scan callback
           if (handleCameraScan) {
             handleCameraScan(decodedText);
           }
-
-          // If NOT continuous scan, the parent will close the modal
-          // We don't stop the scanner here to avoid state transition errors
         };
 
-        // Error callback (suppress noisy scanning errors)
+        // Error callback (can be noisy, so we'll suppress it)
         const onScanError = (errorMessage) => {
-          // Suppress continuous scanning errors to avoid console spam
+          // Suppress continuous scanning errors
         };
 
-        // Configure scanner settings for better mobile performance
+        // Configuration for mobile scanning
         const config = {
           fps: 10,
-          qrbox: { width: 250, height: 150 },
+          qrbox: { width: 250, height: 250 },
           aspectRatio: 1.777778,
           formatsToSupport: [
             'EAN_13',
@@ -164,14 +112,13 @@ export default function ScannerModal({
           onScanError
         );
 
-        if (mounted && isMountedRef.current) {
-          setIsScanning(true);
-          console.log('✅ Scanner started successfully');
-        }
+        scannerStarted = true;
+        setIsScanning(true);
+        console.log('Scanner started successfully');
       } catch (err) {
-        console.error('❌ Failed to start scanner:', err);
-        if (mounted && isMountedRef.current) {
-          setScanError('Failed to start camera. Please check permissions.');
+        console.error('Failed to start scanner:', err);
+        if (mounted) {
+          setScanError('Failed to start camera scanner');
           setIsScanning(false);
         }
       }
@@ -181,36 +128,36 @@ export default function ScannerModal({
 
     return () => {
       mounted = false;
-      isMountedRef.current = false;
-      stopScanner();
+      setIsScanning(false);
+
+      // Cleanup scanner only if it was started
+      if (html5QrcodeRef.current && scannerStarted) {
+        html5QrcodeRef.current.stop()
+          .then(() => {
+            console.log('Scanner stopped successfully');
+            html5QrcodeRef.current = null;
+          })
+          .catch(err => {
+            console.log('Scanner already stopped');
+            html5QrcodeRef.current = null;
+          });
+      }
     };
   }, [show, scannerMode, handleCameraScan]);
 
   // Cleanup on unmount
   useEffect(() => {
-    isMountedRef.current = true;
-    
     return () => {
-      isMountedRef.current = false;
-      stopScanner();
+      if (html5QrcodeRef.current) {
+        // Check if scanner is running before stopping
+        const state = html5QrcodeRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          html5QrcodeRef.current.stop().catch(() => {});
+        }
+        html5QrcodeRef.current = null;
+      }
     };
   }, []);
-
-  // Safe close handler
-  const handleClose = () => {
-    console.log('🚪 Closing modal...');
-    isMountedRef.current = false;
-    stopScanner().then(() => {
-      onClose();
-    });
-  };
-
-  // Safe background click handler
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      handleClose();
-    }
-  };
 
   if (!show) return null;
 
@@ -221,7 +168,7 @@ export default function ScannerModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-        onClick={handleBackdropClick}
+        onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -246,7 +193,7 @@ export default function ScannerModal({
               </div>
             </div>
             <button 
-              onClick={handleClose}
+              onClick={onClose}
               className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -319,20 +266,6 @@ export default function ScannerModal({
                       Scanning...
                     </div>
                   )}
-
-                  {/* Instructions Overlay */}
-                  {!isScanning && !scanError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50">
-                      <div className="text-center text-white px-4">
-                        <Camera className="w-12 h-12 mx-auto mb-2 opacity-75" />
-                        <p className="text-sm">Initializing camera...</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-xs text-center text-slate-500">
-                  Position barcode within the scanning area
                 </div>
               </div>
             )}
@@ -386,8 +319,7 @@ export default function ScannerModal({
                 />
                 <button
                   onClick={onManualSubmit}
-                  disabled={!manualInput.trim()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
                 >
                   Add
                 </button>
@@ -398,7 +330,7 @@ export default function ScannerModal({
           {/* Footer - Fixed */}
           <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
             <button
-              onClick={handleClose}
+              onClick={onClose}
               className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium"
             >
               Done Scanning

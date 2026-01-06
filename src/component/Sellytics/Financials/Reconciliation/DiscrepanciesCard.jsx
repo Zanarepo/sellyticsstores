@@ -6,86 +6,66 @@ import { useCurrency } from '../../../context/currencyContext';
 export default function DiscrepanciesCard({ totalDiscrepancy, discrepanciesByPaymentMethod }) {
   const { formatPrice } = useCurrency();
 
+  // Create a unified list of cards
+  const cards = [
+    {
+      title: 'Total Discrepancy',
+      discrepancy: totalDiscrepancy,
+    },
+    ...Object.entries(discrepanciesByPaymentMethod).map(([method, discrepancy]) => ({
+      title: method,
+      discrepancy,
+    })),
+  ];
+
+  const colorMap = {
+    red: {
+      bg: 'bg-red-100 dark:bg-red-900/30',
+      text: 'text-red-600 dark:text-red-400',
+    },
+    emerald: {
+      bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+      text: 'text-emerald-600 dark:text-emerald-400',
+    },
+    slate: {
+      bg: 'bg-slate-100 dark:bg-slate-700',
+      text: 'text-slate-600 dark:text-slate-400',
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            totalDiscrepancy > 0 
-              ? 'bg-red-100 dark:bg-red-900/30' 
-              : 'bg-emerald-100 dark:bg-emerald-900/30'
-          }`}>
-            <AlertCircle className={`w-5 h-5 ${
-              totalDiscrepancy > 0 
-                ? 'text-red-600 dark:text-red-400' 
-                : 'text-emerald-600 dark:text-emerald-400'
-            }`} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Total Discrepancies</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Differences between expected and actual</p>
-          </div>
-        </div>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      {cards.map((card, idx) => {
+        const isShort = card.discrepancy > 0;
+        const isOver = card.discrepancy < 0;
 
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={`rounded-xl p-4 ${
-            totalDiscrepancy > 0 
-              ? 'bg-red-50 dark:bg-red-900/20' 
-              : 'bg-emerald-50 dark:bg-emerald-900/20'
-          }`}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            {totalDiscrepancy > 0 ? (
-              <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
-            ) : (
-              <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            )}
-            <h4 className="font-semibold text-slate-900 dark:text-white">All Methods</h4>
-          </div>
-          <p className={`text-2xl font-bold ${
-            totalDiscrepancy > 0 
-              ? 'text-red-600 dark:text-red-400' 
-              : 'text-emerald-600 dark:text-emerald-400'
-          }`}>
-            {formatPrice(Math.abs(totalDiscrepancy))}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {totalDiscrepancy > 0 ? 'Short' : totalDiscrepancy < 0 ? 'Over' : 'Balanced'}
-          </p>
-        </motion.div>
+        const color = isShort ? 'red' : isOver ? 'emerald' : 'slate';
+        const Icon = isShort ? TrendingDown : isOver ? TrendingUp : AlertCircle;
 
-        {/* By Payment Method */}
-        {Object.entries(discrepanciesByPaymentMethod).map(([method, discrepancy], idx) => (
+        return (
           <motion.div
-            key={method}
-            initial={{ opacity: 0, y: 10 }}
+            key={card.title}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            className={`rounded-xl p-4 ${
-              discrepancy > 0 
-                ? 'bg-red-50 dark:bg-red-900/20' 
-                : 'bg-emerald-50 dark:bg-emerald-900/20'
-            }`}
+            transition={{ delay: idx * 0.1 }}
+            className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-slate-200 dark:border-slate-700"
           >
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-2">{method}</h4>
-            <p className={`text-xl font-bold ${
-              discrepancy > 0 
-                ? 'text-red-600 dark:text-red-400' 
-                : 'text-emerald-600 dark:text-emerald-400'
-            }`}>
-              {formatPrice(Math.abs(discrepancy))}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {discrepancy > 0 ? 'Short' : discrepancy < 0 ? 'Over' : 'Balanced'}
-            </p>
+            <div className="flex items-start gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${colorMap[color].bg} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${colorMap[color].text}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] sm:text-xs text-slate-500 leading-tight truncate">
+                  {card.title}
+                </p>
+                <p className={`text-xs sm:text-sm font-bold ${colorMap[color].text} truncate`}>
+                  {formatPrice(Math.abs(card.discrepancy))}
+                </p>
+              </div>
+            </div>
           </motion.div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

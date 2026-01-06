@@ -1,11 +1,12 @@
 // components/attendance/AttendanceDashboard.jsx
-import React, { useState,  useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAttendance } from './useAttendance';
 import StatsCards from './StatsCards';
 import AttendanceTable from './AttendanceTable';
 import PermissionModal from './PermissionModal';
 import BarcodeModal from './BarcodeModal';
 import ScanModal from './ScanModal';
+import { QrCode, Barcode, Settings, Trash2 } from 'lucide-react';
 
 export default function AttendanceDashboard() {
   const {
@@ -23,26 +24,23 @@ export default function AttendanceDashboard() {
     clearAll,
     storeId,
     updateStoreShiftHours,
-
   } = useAttendance();
 
-  const [selectedUserId, setSelectedUserId] = useState(null); // null = all users
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [selectedLogs, setSelectedLogs] = useState([]);
-  // Recalculate stats dynamically whenever logs, permissions, or selectedUserId changes
+
   const currentStats = useMemo(() => {
     return calculateStats(logs, permissions, selectedUserId);
   }, [logs, permissions, selectedUserId, calculateStats]);
 
-  // Filtered logs for table (by selected user)
   const filteredLogs = useMemo(() => {
     if (!selectedUserId) return logs;
     return logs.filter(log => log.user_id === selectedUserId);
   }, [logs, selectedUserId]);
 
-  // Handle checkbox selection
   const handleSelect = (id) => (e) => {
     if (id === 'all') {
       setSelectedLogs(e.target.checked ? filteredLogs.map(l => l.id) : []);
@@ -71,161 +69,139 @@ export default function AttendanceDashboard() {
     setScanOpen(false);
   };
 
-  if (loading) return <div className="text-center py-16">Loading attendance data...</div>;
-  if (error) return <div className="text-center py-16 text-red-600">{error}</div>;
+  if (loading) return <div className="text-center py-12 sm:py-16">Loading attendance data...</div>;
+  if (error) return <div className="text-center py-12 sm:py-16 text-red-600">{error}</div>;
 
   return (
     <>
-   
-
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 py-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
-          
-
-            <div className="flex flex-wrap items-center gap-3">
+          {/* Compact Header with Action Buttons */}
+          <div className="mb-4 sm:mb-6">
+            {/* Primary Actions - Compact Row */}
+            <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
               <button
                 onClick={() => setScanOpen(true)}
-                className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
               >
-                Scan Barcode
+                <QrCode className="w-4 h-4" />
+                <span className="hidden xs:inline">Scan</span>
               </button>
 
               {isAdmin && (
-                <button
-                  onClick={() => setBarcodeOpen(true)}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
-                >
-                  Show Store Barcode
-                </button>
-              )}
-             {isAdmin && (
-  <button
-    onClick={() => {
-      const options = ['daily', 'weekly', 'monthly'];
-      const choice = prompt(
-        'Set barcode rotation frequency:\nType: daily, weekly, or monthly',
-        localStorage.getItem('barcode_rotation') || 'daily'
-      );
-      if (options.includes(choice?.toLowerCase())) {
-        localStorage.setItem('barcode_rotation', choice.toLowerCase());
-        alert(`Barcode rotation set to: ${choice.toLowerCase()}`);
-      } else if (choice !== null) {
-        alert('Invalid choice. Use: daily, weekly, or monthly');
-      }
-    }}
-    className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
-  >
-    Set Barcode Rotation
-  </button>
-)}
+                <>
+                  <button
+                    onClick={() => setBarcodeOpen(true)}
+                    className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    <Barcode className="w-4 h-4" />
+                    <span className="hidden xs:inline">Store Code</span>
+                  </button>
 
+                  <button
+                    onClick={() => {
+                      const options = ['daily', 'weekly', 'monthly'];
+                      const choice = prompt(
+                        'Set barcode rotation frequency:\nType: daily, weekly, or monthly',
+                        localStorage.getItem('barcode_rotation') || 'daily'
+                      );
+                      if (options.includes(choice?.toLowerCase())) {
+                        localStorage.setItem('barcode_rotation', choice.toLowerCase());
+                        alert(`Barcode rotation set to: ${choice.toLowerCase()}`);
+                      } else if (choice !== null) {
+                        alert('Invalid choice. Use: daily, weekly, or monthly');
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="hidden sm:inline">Rotation</span>
+                  </button>
 
-{/* 
-              <button
-                onClick={() => setPermissionOpen(true)}
-                className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
-              >
-                {isAdmin ? 'Manage Permissions' : 'Request Permission'}
-              </button>
-*/}
-              {isAdmin && selectedLogs.length > 0 && (
-                <button
-                  onClick={handleDeleteSelected}
-                  className="px-5 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
-                >
-                  Delete Selected ({selectedLogs.length})
-                </button>
-              )}
+                  {selectedLogs.length > 0 && (
+                    <button
+                      onClick={handleDeleteSelected}
+                      className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span className="hidden xs:inline">Delete ({selectedLogs.length})</span>
+                      <span className="xs:hidden">{selectedLogs.length}</span>
+                    </button>
+                  )}
 
-              {isAdmin && (
-                <button
-                  onClick={handleClearAll}
-                  className="px-5 py-2.5 bg-red-800 text-white rounded-lg font-medium hover:bg-red-900"
-                >
-                  Clear All Logs
-                </button>
+                  <button
+                    onClick={handleClearAll}
+                    className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-800 text-white rounded-lg text-sm font-medium hover:bg-red-900 transition-colors ml-auto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Clear All</span>
+                  </button>
+                </>
               )}
- 
             </div>
+
+            {/* Admin Settings - Compact Cards */}
+            {isAdmin && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                {/* Shift Length */}
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+                  <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Standard Shift
+                  </label>
+                  <select
+                    value={localStorage.getItem('store_shift_hours') || '8'}
+                    onChange={(e) => {
+                      const hours = e.target.value;
+                      localStorage.setItem('store_shift_hours', hours);
+                      updateStoreShiftHours(parseFloat(hours));
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    {[6, 7, 8, 9, 10, 11, 12].map((h) => (
+                      <option key={h} value={h}>{h} hours</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-500 mt-1.5">
+                    For incomplete days
+                  </p>
+                </div>
+
+                {/* User Filter */}
+                {users.length > 0 && (
+                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+                    <label className="block text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                      Filter by User
+                    </label>
+                    <select
+                      value={selectedUserId || ''}
+                      onChange={(e) =>
+                        setSelectedUserId(e.target.value ? Number(e.target.value) : null)
+                      }
+                      className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    >
+                      <option value="">All Users ({logs.length})</option>
+                      {users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name} ({logs.filter((l) => l.user_id === user.id).length})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-{isAdmin && (
-  <div className="mb-8">
-    {/* Section Title (optional, looks nice) */}
-    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-      Admin Settings
-    </h3>
-
-    {/* Horizontal Layout on Medium+ Screens, Stacked on Mobile */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Shift Length Selector */}
-      <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-          Standard Shift Length (for incomplete days)
-        </label>
-      <select
-        value={localStorage.getItem('store_shift_hours') || '8'} // ← Direct from localStorage
-        onChange={(e) => {
-          const hours = e.target.value;
-          localStorage.setItem('store_shift_hours', hours);
-          updateStoreShiftHours(parseFloat(hours)); // Trigger recalculation
-        
-        }}
-        className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
-      >
-        {[6, 7, 8, 9, 10, 11, 12].map((h) => (
-          <option key={h} value={h}>
-            {h} hours
-          </option>
-        ))}
-      </select>
-        <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
-          When staff forget to clock out, this shift length is assumed for payroll.
-        </p>
-      </div>
-
-      {/* User Filter */}
-      {users.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Filter by User
-          </label>
-          <select
-            value={selectedUserId || ''}
-            onChange={(e) =>
-              setSelectedUserId(e.target.value ? Number(e.target.value) : null)
-            }
-            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-          >
-            <option value="">All Users ({logs.length} logs)</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.full_name} ({logs.filter((l) => l.user_id === user.id).length} logs)
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-    </div>
-  </div>
-)}
- 
-
-
-
-
-
-
-
-          {/* Dynamic Stats Cards */}
+          {/* Stats Cards */}
           <StatsCards stats={currentStats} />
 
           {/* Attendance Table */}
-          <div className="mt-10">
-            <h2 className="text-xl font-semibold mb-4">
-              Attendance Logs {selectedUserId && `- Filtered for ${users.find(u => u.id === selectedUserId)?.full_name}`}
+          <div className="mt-6 sm:mt-8">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-3 sm:mb-4">
+              {selectedUserId 
+                ? `Logs - ${users.find(u => u.id === selectedUserId)?.full_name}` 
+                : 'All Attendance Logs'
+              }
             </h2>
             <AttendanceTable
               logs={filteredLogs}

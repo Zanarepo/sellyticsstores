@@ -1,5 +1,5 @@
 // useProductFetch.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import offlineDB from '../db/offlineDB';
 
 export function useProductFetch(storeId, isOnline, supabaseRef) {
@@ -7,7 +7,7 @@ export function useProductFetch(storeId, isOnline, supabaseRef) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     if (!storeId) return;
     setLoading(true);
     setError(null);
@@ -36,9 +36,11 @@ export function useProductFetch(storeId, isOnline, supabaseRef) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [storeId, isOnline, supabaseRef]);
 
-  useEffect(() => { fetchProducts(); }, [storeId, isOnline]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   return { products, setProducts, loading, error, fetchProducts };
 }

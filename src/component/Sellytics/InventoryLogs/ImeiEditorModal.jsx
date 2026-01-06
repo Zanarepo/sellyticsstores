@@ -78,7 +78,7 @@ export default function ImeiEditorModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
         onClick={onClose}
       >
         <motion.div
@@ -89,26 +89,26 @@ export default function ImeiEditorModal({
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+          <div className="flex items-center justify-between p-3 sm:p-5 border-b dark:border-slate-800 flex-shrink-0">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
                 <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <div>
-                <h2 className="font-semibold text-slate-900 dark:text-white">Manage Product IDs</h2>
-                <p className="text-sm text-slate-500 truncate max-w-[200px]">{product.name}</p>
+              <div className="overflow-hidden">
+                <h2 className="font-semibold text-slate-900 dark:text-white text-base sm:text-lg">Manage Product IDs</h2>
+                <p className="text-sm text-slate-500 truncate">{product.name}</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-2">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
             {/* Add New IMEI */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Add Product ID / IMEIs</label>
+            <div className="space-y-2">
+              <label className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">Add Product ID / IMEIs</label>
               <div className="flex gap-2">
                 <input
                   ref={inputRef}
@@ -116,27 +116,30 @@ export default function ImeiEditorModal({
                   value={newImei}
                   onChange={e => setNewImei(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Scan or enter Product ID..."
-                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Scan or enter ID..."
+                  className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
-                <button type="button" onClick={handleScan} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors">
-                  <Scan className="w-5 h-5 text-slate-600" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddImei}
-                  disabled={isSubmitting || !newImei.trim()}
-                  className="px-4 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-xl font-medium flex items-center gap-2 transition-colors"
-                >
-                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                </button>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <button type="button" onClick={handleScan} className="p-2.5 sm:p-3 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors">
+                    <Scan className="w-5 h-5 text-slate-600" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddImei}
+                    disabled={isSubmitting || !newImei.trim()}
+                    className="px-3 sm:px-4 py-2.5 sm:py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-xl font-medium flex items-center gap-1 sm:gap-2 transition-colors"
+                  >
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    <span className="hidden sm:inline">Add</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Info Note */}
-            <div className="flex items-start gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+            <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
               <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-purple-700 dark:text-purple-300">
+              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-300">
                 Each device ID represents one unit in stock. Adding/removing IDs will automatically update the inventory count.
               </div>
             </div>
@@ -148,11 +151,11 @@ export default function ImeiEditorModal({
                 <span className="text-sm text-slate-500">{inStock.length} units</span>
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-60 sm:max-h-64 overflow-y-auto p-0.5 -mr-2 pr-2">
                 {inStock.length === 0 ? (
                   <div className="text-center py-8 text-slate-500">
                     <Box className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No IDs tracked</p>
+                    <p className="font-medium">No IDs tracked</p>
                     <p className="text-sm">Add Product IDs to track inventory</p>
                   </div>
                 ) : (
@@ -162,18 +165,18 @@ export default function ImeiEditorModal({
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl group"
+                      className="flex items-center justify-between p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-xl group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-xs font-medium text-purple-600">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-xs font-medium text-purple-600 flex-shrink-0">
                           {index + 1}
                         </div>
-                        <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{imei}</span>
+                        <span className="font-mono text-xs sm:text-sm text-slate-700 dark:text-slate-300 truncate">{imei}</span>
                       </div>
                       <button
                         onClick={() => handleRemoveImei(imei)}
                         disabled={isSubmitting}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -185,10 +188,10 @@ export default function ImeiEditorModal({
           </div>
 
           {/* Footer */}
-          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+          <div className="p-3 sm:p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
             <button
               onClick={onClose}
-              className="w-full py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-2.5 sm:py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
             >
               <Check className="w-5 h-5" />
               Done

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ReturnsService } from './services/returnsService';
 import { toast } from 'react-hot-toast';
 
@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 export function useReturnsActions({ supabase, warehouseId, userId, onSuccess }) {
   const [processing, setProcessing] = useState(false);
 
-  const service = new ReturnsService(supabase, warehouseId, userId);
+  const service = useMemo(() => new ReturnsService(supabase, warehouseId, userId), [supabase, warehouseId, userId]);
 
   // Create return request
   const createReturn = useCallback(async (returnData) => {
@@ -25,7 +25,7 @@ export function useReturnsActions({ supabase, warehouseId, userId, onSuccess }) 
     } finally {
       setProcessing(false);
     }
-  }, [warehouseId, userId, onSuccess]);
+  }, [ onSuccess, service]);
 
   // Process return inspection
   const processReturn = useCallback(async (returnId, inspectionData) => {
@@ -42,7 +42,7 @@ export function useReturnsActions({ supabase, warehouseId, userId, onSuccess }) 
     } finally {
       setProcessing(false);
     }
-  }, [warehouseId, userId, onSuccess]);
+  }, [service, onSuccess]);
 
   // Bulk delete returns
   const bulkDelete = useCallback(async (returnIds) => {
@@ -59,7 +59,7 @@ export function useReturnsActions({ supabase, warehouseId, userId, onSuccess }) 
     } finally {
       setProcessing(false);
     }
-  }, [warehouseId, userId, onSuccess]);
+  }, [service, onSuccess]);
 
   // Export returns
   const exportReturns = useCallback(async (filters) => {
@@ -105,7 +105,7 @@ export function useReturnsActions({ supabase, warehouseId, userId, onSuccess }) 
       console.error('Error exporting:', error);
       toast.error('Failed to export data');
     }
-  }, [warehouseId, userId]);
+  }, [service]);
 
   return {
     processing,

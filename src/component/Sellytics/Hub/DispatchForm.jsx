@@ -1,12 +1,13 @@
 // DispatchForm.jsx - Enhanced Dispatch with Batch Selection (shadcn components replaced with plain HTML/Tailwind)
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import {
   ArrowUpRight, 
   Package, 
   Send,
   Loader2,
   Plus,
+  FileText,
+  Hash,
   Minus,
   Trash2,
   AlertCircle,
@@ -142,165 +143,176 @@ export default function DispatchForm({ warehouseId, clientId, inventory = [], on
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200">
-      {/* Header */}
-      <div className="p-6 pb-4 bg-gradient-to-r from-rose-600 to-pink-600 text-white rounded-t-xl">
+    <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+      {/* Compact Header */}
+      <div className="p-3 sm:p-4 bg-gradient-to-r from-rose-600 to-pink-600 rounded-t-lg sm:rounded-t-xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5" />
+          <h2 className="text-sm sm:text-base font-semibold flex items-center gap-2 text-white">
+            <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
             Dispatch / Ship Out
           </h2>
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20">
-            {totalItems} items
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium bg-white/20 text-white">
+            <Package className="w-3 h-3" />
+            {totalItems}
           </span>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* Dispatch Items */}
-        <div className="max-h-[400px] overflow-y-auto">
-          <div className="space-y-4">
-            {dispatchItems.map((item, index) => {
-              const { available } = getProductInfo(item.productId);
-              const isOverLimit = item.quantity > available;
+        <div className="max-h-[350px] sm:max-h-[400px] overflow-y-auto space-y-2">
+          {dispatchItems.map((item, index) => {
+            const { available } = getProductInfo(item.productId);
+            const isOverLimit = item.quantity > available;
 
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 bg-slate-50 rounded-xl"
-                >
-                  <div className="grid grid-cols-12 gap-4 items-end">
-                    {/* Product Select */}
-                    <div className="col-span-6 space-y-2">
-                      <label className="block text-xs font-medium text-slate-700">Product</label>
-                      <div className="relative">
-                        <select
-                          value={item.productId}
-                          onChange={(e) => updateItem(index, "productId", e.target.value)}
-                          className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                        >
-                          <option value="" disabled>Select product...</option>
-                          {availableProducts.map((inv) => {
-                            const disabled = dispatchItems.some(
-                              (d, i) => i !== index && d.productId === inv.product.id.toString()
-                            );
-                            return (
-                              <option 
-                                key={inv.product.id} 
-                                value={inv.product.id.toString()}
-                                disabled={disabled}
-                                className={disabled ? "text-slate-400" : ""}
-                              >
-                                {inv.product.product_name} ({inv.available_qty} available)
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {/* Quantity */}
-                    <div className="col-span-4 space-y-2">
-                      <label className="block text-xs font-medium text-slate-700 items-center justify-between">
-                        <span>Quantity</span>
-                        {item.productId && (
-                          <span className="text-slate-400">Max: {available}</span>
-                        )}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => updateItem(index, "quantity", item.quantity - 1)}
-                          disabled={item.quantity <= 1}
-                          className="h-9 w-9 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <input
-                          type="number"
-                          min="1"
-                          max={available}
-                          value={item.quantity}
-                          onChange={(e) => updateItem(index, "quantity", e.target.value)}
-                          className={`w-20 text-center h-9 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${
-                            isOverLimit ? "border-rose-500" : "border-slate-300"
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => updateItem(index, "quantity", item.quantity + 1)}
-                          disabled={item.quantity >= available}
-                          className="h-9 w-9 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {isOverLimit && (
-                        <p className="text-xs text-rose-500 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          Exceeds available stock
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Remove */}
-                    <div className="col-span-2">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="h-9 w-9 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition flex items-center justify-center"
+            return (
+              <div
+                key={index}
+                className="p-2.5 sm:p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700"
+              >
+                {/* Mobile: Stack, Desktop: Grid */}
+                <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-3 sm:items-end">
+                  {/* Product Select */}
+                  <div className="sm:col-span-6 space-y-1">
+                    <label className="flex items-center gap-1 text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">
+                      <Package className="w-3 h-3" />
+                      Product
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={item.productId}
+                        onChange={(e) => updateItem(index, "productId", e.target.value)}
+                        className="w-full px-3 py-2 pr-8 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs sm:text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-rose-500"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <option value="" disabled>Select product...</option>
+                        {availableProducts.map((inv) => {
+                          const disabled = dispatchItems.some(
+                            (d, i) => i !== index && d.productId === inv.product.id.toString()
+                          );
+                          return (
+                            <option 
+                              key={inv.product.id} 
+                              value={inv.product.id.toString()}
+                              disabled={disabled}
+                              className={disabled ? "text-slate-400" : ""}
+                            >
+                              {inv.product.product_name} ({inv.available_qty})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                </motion.div>
-              );
-            })}
-          </div>
+
+                  {/* Quantity */}
+                  <div className="sm:col-span-4 space-y-1">
+                    <label className="flex items-center justify-between text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">
+                      <span className="flex items-center gap-1">
+                        <Hash className="w-3 h-3" />
+                        Quantity
+                      </span>
+                      {item.productId && (
+                        <span className="text-slate-400 dark:text-slate-500">Max: {available}</span>
+                      )}
+                    </label>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateItem(index, "quantity", item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                        className="h-8 w-8 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center active:scale-95"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        max={available}
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                        className={`flex-1 text-center h-8 border rounded-lg text-sm font-semibold bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 ${
+                          isOverLimit ? "border-rose-500" : "border-slate-300 dark:border-slate-600"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateItem(index, "quantity", item.quantity + 1)}
+                        disabled={item.quantity >= available}
+                        className="h-8 w-8 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {isOverLimit && (
+                      <p className="text-[9px] sm:text-[10px] text-rose-500 dark:text-rose-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Exceeds available stock
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Remove Button */}
+                  <div className="sm:col-span-2 flex sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="h-8 w-8 rounded-lg text-rose-500 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition flex items-center justify-center active:scale-95"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Add Item Button */}
+        {/* Add Item Button - Compact */}
         <button
           type="button"
           onClick={addItem}
-          className="w-full py-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition flex items-center justify-center gap-2 text-slate-600 font-medium"
+          className="w-full py-3 sm:py-4 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:border-rose-400 dark:hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 font-medium text-xs sm:text-sm active:scale-[0.98]"
         >
-          <Plus className="w-5 h-5" />
-          Add Product to Dispatch
+          <Plus className="w-4 h-4" />
+          Add Product
         </button>
 
         {/* Notes */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700">Notes (Optional)</label>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+            <FileText className="w-3.5 h-3.5" />
+            Notes (Optional)
+          </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Shipping reference, destination, etc."
             rows={2}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
           />
         </div>
 
-        {/* Submit */}
+        {/* Submit Button - Compact */}
         <button
           onClick={handleDispatch}
-          disabled={dispatchItems.length === 0 || isSubmitting || dispatchItems.some(i => !i.productId || i.quantity > getProductInfo(i.productId).available)}
-          className="w-full h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-medium rounded-lg transition flex items-center justify-center gap-2"
+          disabled={
+            dispatchItems.length === 0 || 
+            isSubmitting || 
+            dispatchItems.some(i => !i.productId || i.quantity > getProductInfo(i.productId).available)
+          }
+          className="w-full h-11 sm:h-12 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm sm:text-base font-semibold rounded-lg transition flex items-center justify-center gap-2 active:scale-[0.98]"
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
               Processing...
             </>
           ) : (
             <>
-              <Send className="w-5 h-5" />
-              Dispatch {totalItems} Item{totalItems !== 1 ? "s" : ""}
+              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+              Dispatch {totalItems} Item{totalItems !== 1 ? 's' : ''}
             </>
           )}
         </button>

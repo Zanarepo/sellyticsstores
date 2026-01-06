@@ -47,7 +47,7 @@ export default function ProductLineItem({
         {/* Product Name */}
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Product Name *
+            Product Names *
           </label>
           <input
             type="text"

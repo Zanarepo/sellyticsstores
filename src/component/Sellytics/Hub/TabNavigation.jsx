@@ -1,4 +1,5 @@
-// components/TabNavigation.jsx
+// components/TabNavigation.jsx - Ultra Sleek & Compact
+import React from "react";
 import { Package, ArrowDownLeft, ArrowUpRight, History } from "lucide-react";
 
 export default function TabNavigation({ activeTab, setActiveTab, isInternal }) {
@@ -6,74 +7,78 @@ export default function TabNavigation({ activeTab, setActiveTab, isInternal }) {
     {
       key: "inventory",
       label: "Inventory",
-      icon: <Package className="w-5 h-5" />,
+      icon: Package,
+      shortLabel: "Items",
     },
-    // Only show Stock In & Dispatch for external clients (when !isInternal)
+    // Only show Stock In & Dispatch for external clients
     ...(isInternal
       ? []
       : [
           {
             key: "stock-in",
             label: "Stock In",
-            icon: <ArrowDownLeft className="w-5 h-5" />,
+            icon: ArrowDownLeft,
+            shortLabel: "In",
           },
           {
             key: "dispatch",
             label: "Dispatch",
-            icon: <ArrowUpRight className="w-5 h-5" />,
+            icon: ArrowUpRight,
+            shortLabel: "Out",
           },
         ]),
     {
       key: "history",
       label: "History",
-      icon: <History className="w-5 h-5" />,
+      icon: History,
+      shortLabel: "Log",
     },
-
   ];
 
   return (
-    <>
-      {/* Desktop/Tablet: Classic underline tabs */}
-      <div className="hidden sm:block mt-6 border-b border-slate-200">
-        <div className="flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-all duration-200 ${
-                activeTab === tab.key
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+    <div className="border-b border-slate-200 dark:border-slate-700">
+      {/* Unified Horizontal Scroll Design - Works on All Screens */}
+      <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
+        <div className="flex gap-1 min-w-max">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`
+                  flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 
+                  rounded-t-lg font-medium text-xs sm:text-sm 
+                  transition-all duration-200 whitespace-nowrap
+                  border-b-2 -mb-px relative
+                  ${
+                    isActive
+                      ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent"
+                  }
+                `}
+              >
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                
+                {/* Full label on larger screens */}
+                <span className="hidden sm:inline">{tab.label}</span>
+                
+                {/* Short label on mobile */}
+                <span className="sm:hidden">{tab.shortLabel}</span>
+                
+                {/* Active indicator dot */}
+                {isActive && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Mobile: Horizontal scrollable pill-style tabs */}
-      <div className="sm:hidden mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-3 pb-3 min-w-max">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 ${
-                activeTab === tab.key
-                  ? "bg-indigo-600 text-white shadow-md"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Optional: Hide scrollbar on mobile */}
+      {/* Hide scrollbar - Using Tailwind approach */}
       <style jsx>{`
         .scrollbar-hide {
           -ms-overflow-style: none;
@@ -83,6 +88,6 @@ export default function TabNavigation({ activeTab, setActiveTab, isInternal }) {
           display: none;
         }
       `}</style>
-    </>
+    </div>
   );
 }

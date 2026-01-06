@@ -439,114 +439,115 @@ const handleDeleteOfflineSale = useCallback(async (saleId) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
       <ToastContainer position="top-right" autoClose={3000} />
       
-     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-  <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-    {/* Header */}
+  <div className="w-full flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+    {/* Header Top - Connection Status & Sync */}
+    <div className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 min-h-[44px] sm:min-h-auto">
+      {/* Connection Status */}
+      <div className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-xs sm:text-xs font-medium flex-shrink-0 ${
+        isOnline 
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+      }`}>
+        {isOnline ? <Wifi className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <WifiOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+        <span className="hidden xs:inline">{isOnline ? 'Online' : 'Offline'}</span>
+      </div>
 
-        
-
-         <div className="flex items-center gap-3 w-full sm:w-auto ml-auto justify-end ">
-
-            {/* Connection Status */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-              isOnline 
-                ? 'bg-emerald-100 text-emerald-700' 
-                : 'bg-amber-100 text-amber-700'
-            }`}>
-              {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {isOnline ? 'Online' : 'Offline'}
-            </div>
-
-            {/* Pending Count */}
-            {queueCount > 0 && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={syncAll}
-                  disabled={!isOnline || isSyncing}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded-lg text-xs font-medium transition-colors"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                  Sync ({queueCount})
-                </button>
-                
-                {isSyncing && (
-                  <button
-                    onClick={syncPaused ? resumeSync : pauseSync}
-                    className="p-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg"
-                  >
-                    {syncPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-                  </button>
-                )}
-              </div>
-            )}
-
-        
+      {/* Pending Sync Button - Full Width on Mobile */}
+      {queueCount > 0 && (
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-none">
+          <button
+            onClick={syncAll}
+            disabled={!isOnline || isSyncing}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded-lg sm:rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 min-h-[40px] sm:min-h-auto"
+          >
+            <RefreshCw className={`w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className="truncate">Sync ({queueCount})</span>
+          </button>
           
-            {/* New Sale Button */}
+          {isSyncing && (
             <button
-              onClick={() => setShowCheckoutForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-lg shadow-indigo-200 dark:shadow-none transition-colors"
+              onClick={syncPaused ? resumeSync : pauseSync}
+              className="p-2 sm:p-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg transition-colors active:scale-95 min-h-[40px] min-w-[40px] sm:min-h-auto sm:min-w-auto flex items-center justify-center"
+              aria-label={syncPaused ? 'Resume sync' : 'Pause sync'}
             >
-              <Plus className="w-4 h-4" />
-              New Sale
+              {syncPaused ? <Play className="w-4 h-4 sm:w-4 sm:h-4" /> : <Pause className="w-4 h-4 sm:w-4 sm:h-4" />}
             </button>
-          </div>
+          )}
         </div>
+      )}
 
-        {/* Tab Navigation */}
-        <div className="flex gap-1 p-1 bg-gray-50 dark:bg-slate-800 rounded-xl pt-4">
-          <button
-            onClick={() => setActiveTab('checkout')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'checkout'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Checkout
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'history'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            Sales History
-          </button>
-        </div>
+      {/* New Sale Button - High Priority CTA */}
+      <button
+        onClick={() => setShowCheckoutForm(true)}
+        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg sm:rounded-xl font-semibold shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95 min-h-[44px] sm:min-h-auto text-sm sm:text-base"
+      >
+        <Plus className="w-4.5 h-4.5 sm:w-5 sm:h-5 flex-shrink-0" />
+        <span className="truncate">New Sale</span>
+      </button>
+    </div>
+  </div>
 
-        {/* Content */}
-        {activeTab === 'checkout' && (
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-4">
+  {/* Tab Navigation - Native Mobile App Style */}
+  <div className="w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 sticky top-0 z-10">
+    <div className="flex gap-0">
+      <button
+        onClick={() => setActiveTab('checkout')}
+        className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold transition-all active:scale-95 min-h-[48px] sm:min-h-auto border-b-2 ${
+          activeTab === 'checkout'
+            ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
+            : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-300'
+        }`}
+      >
+        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+        <span className="truncate">Checkout</span>
+      </button>
+      <button
+        onClick={() => setActiveTab('history')}
+        className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold transition-all active:scale-95 min-h-[48px] sm:min-h-auto border-b-2 ${
+          activeTab === 'history'
+            ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
+            : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-300'
+        }`}
+      >
+        <History className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+        <span className="truncate">History</span>
+      </button>
+    </div>
+  </div>
+
+  {/* Main Content Area */}
+  <div className="w-full max-w-full mx-0 flex-1 flex flex-col space-y-0">
+    {/* Scrollable Content Area */}
+    <div className="flex-1 overflow-y-auto">
+      {/* Checkout Tab - With Padding */}
+      {activeTab === 'checkout' && (
+        <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+            {/* Quick Actions - Native Mobile Style */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
               <button
                 onClick={() => scanner.openScanner('camera')}
-                className="flex flex-col items-center justify-center gap-2 p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:shadow-lg transition-all group"
+                className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 md:p-5 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:shadow-md dark:hover:border-indigo-600 active:scale-95 transition-all group touch-manipulation min-h-[120px] sm:min-h-[140px]"
               >
-                <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <ShoppingCart className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center group-hover:scale-110 group-active:scale-100 transition-transform flex-shrink-0">
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white">Quick Scan</span>
-                <span className="text-xs text-slate-500">Camera or scanner</span>
+                <span className="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm text-center">Quick Scan</span>
+                <span className="text-xs sm:text-xs text-slate-500 dark:text-slate-400 text-center line-clamp-1">Camera</span>
               </button>
 
               <button
                 onClick={refreshData}
-                className="flex flex-col items-center justify-center gap-2 p-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:shadow-lg transition-all group"
+                className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 md:p-5 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:shadow-md dark:hover:border-emerald-600 active:scale-95 transition-all group touch-manipulation min-h-[120px] sm:min-h-[140px]"
               >
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <RefreshCw className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center group-hover:scale-110 group-active:scale-100 transition-transform flex-shrink-0">
+                  <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white">Refresh Data</span>
-                <span className="text-xs text-slate-500">Sync products & inventory</span>
+                <span className="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm text-center">Refresh</span>
+                <span className="text-xs sm:text-xs text-slate-500 dark:text-slate-400 text-center line-clamp-1">Data</span>
               </button>
             </div>
 
@@ -564,9 +565,10 @@ const handleDeleteOfflineSale = useCallback(async (saleId) => {
               onDeleteSale={handleDeleteOfflineSale}
               formatPrice={formatPrice}
             />
-          </div>
+        </div>
         )}
 
+        {/* History Tab - Full Width, No Padding */}
         {activeTab === 'history' && (
           <SalesHistory
             sales={filteredSales}
@@ -584,10 +586,12 @@ const handleDeleteOfflineSale = useCallback(async (saleId) => {
             onDateFilterChange={setDateFilter}
           />
         )}
-      </div>
+    </div>
+    </div>
+  </div>
 
-      {/* Checkout Form Modal */}
-      <AnimatePresence>
+  {/* Checkout Form Modal */}
+  <AnimatePresence>
         {showCheckoutForm && (
           <CheckoutForm
             lines={checkoutState.lines}
@@ -689,6 +693,6 @@ const handleDeleteOfflineSale = useCallback(async (saleId) => {
           formatPrice={formatPrice}
         />
       )}
-    </div>
+    </>
   );
 }

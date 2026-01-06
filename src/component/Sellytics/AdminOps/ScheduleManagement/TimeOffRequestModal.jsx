@@ -61,13 +61,13 @@ export default function TimeOffRequestModal({ isOpen, onClose, onSubmit, userId 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md md:max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
               Request Time Off
             </h2>
             <p className="text-sm text-slate-500 mt-1">
@@ -83,10 +83,10 @@ export default function TimeOffRequestModal({ isOpen, onClose, onSubmit, userId 
         </div>
 
         {/* Scrollable Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-8 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 sm:space-y-8 overflow-y-auto">
           {/* Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl">
+            <div className="p-4 sm:p-5 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl">
               <div className="text-sm text-slate-600 dark:text-slate-400 mb-3">Start Date</div>
               <input
                 type="date"
@@ -94,11 +94,11 @@ export default function TimeOffRequestModal({ isOpen, onClose, onSubmit, userId 
                 value={form.start_date}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 text-lg font-medium"
+                className="w-full px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
 
-            <div className="p-5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl">
+            <div className="p-4 sm:p-5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl">
               <div className="text-sm text-slate-600 dark:text-slate-400 mb-3">End Date</div>
               <input
                 type="date"
@@ -106,13 +106,13 @@ export default function TimeOffRequestModal({ isOpen, onClose, onSubmit, userId 
                 value={form.end_date}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 text-lg font-medium"
+                className="w-full px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>
           </div>
 
           {/* Reason */}
-          <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl">
+          <div className="p-4 sm:p-5 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl">
             <div className="text-sm text-slate-600 dark:text-slate-400 mb-3">
               Reason <span className="text-red-500">*</span>
             </div>
@@ -123,25 +123,25 @@ export default function TimeOffRequestModal({ isOpen, onClose, onSubmit, userId 
               rows={5}
               required
               placeholder="e.g., Family wedding, medical appointment, vacation..."
-              className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none text-base"
+              className="w-full px-3 py-2 text-base sm:px-4 sm:py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none"
             />
           </div>
         </form>
 
         {/* Sticky Footer */}
-        <div className="p-6 border-t border-slate-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
+        <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900">
           <div className="flex justify-end gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+              className="px-4 py-2 sm:px-6 sm:py-3 text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               onClick={handleSubmit}
-              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 transition"
+              className="px-6 py-2 sm:px-8 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 transition"
             >
               Submit Request
             </button>

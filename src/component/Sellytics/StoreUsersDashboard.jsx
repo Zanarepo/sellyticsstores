@@ -9,11 +9,12 @@ import {
   FaBell,
   FaIdBadge,
   FaHome,
+  FaWarehouse ,
   FaRobot,
   FaUserShield,
   FaMoneyBillWave,
 } from 'react-icons/fa';
-import { Warehouse} from "lucide-react";
+//import { Warehouse} from "lucide-react";
 
 import StoreUsersTour from './StoreUsersTour';
 import StoreUserProfile from './Profile/StoreUsersProfile';
@@ -135,7 +136,7 @@ const StoreUsersDashboard = () => {
     { name: 'Fix Scan', icon: FaQrcode, aria: 'Fix Scan: Fixed barcode scanning', dataTour: 'fix-scan' },
     { name: 'AI Insights', icon: FaRobot, aria: 'AI Insights: Access AI-powered insights', dataTour: 'ai-insights' },
     { name: 'Admin Ops', icon: FaUserShield, aria: 'Admin Operations: Manage store operations', dataTour: 'admin-ops' },
-    { name: 'Warehouse', icon: Warehouse, aria: 'Admin Operations: Manage store operations', dataTour: 'admin-ops' },
+    { name: 'Warehouse', icon: FaWarehouse, aria: 'Admin Operations: Manage store operations', dataTour: 'admin-ops' },
     { name: 'Financials', icon: FaMoneyBillWave, aria: 'Finances: See all your financial records', dataTour: 'finance' },
     { name: 'Store Settings', icon: FaBell, aria: 'Notifications: Stay updated with store-related notifications', dataTour: 'notifications' },
     { name: 'Colleagues', icon: FaIdBadge, aria: 'Colleagues: Manage your colleagues', dataTour: 'colleagues' },

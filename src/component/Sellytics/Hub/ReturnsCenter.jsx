@@ -154,27 +154,32 @@ export default function ReturnsCenter({
 
   // === Main Render ===
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-            <RotateCcw className="w-7 h-7 text-indigo-600" />
-            Returns Center
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Manage product returns and inspections for <span className="font-medium">{warehouseName}</span>
-          </p>
-        </div>
-        <button
-          onClick={() => setShowInitiateForm(true)}
-          className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          New Return
-        </button>
+  <div className="space-y-4 sm:space-y-6">
+    {/* Compact Header */}
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+      {/* Title Section */}
+      <div className="flex-1 min-w-0">
+        <h1 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+          <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 flex-shrink-0" />
+          <span className="truncate">Returns Center</span>
+        </h1>
+        <p className="text-slate-500 text-xs sm:text-sm mt-1 leading-tight">
+          Manage returns • <span className="font-medium">{warehouseName}</span>
+        </p>
       </div>
 
+      {/* Action Button - Responsive */}
+      <button
+        onClick={() => setShowInitiateForm(true)}
+        className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2 font-medium text-sm sm:text-base shadow-sm hover:shadow-md"
+      >
+        <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+        <span className="hidden xs:inline">New Return</span>
+        <span className="xs:hidden">New</span>
+      </button>
+    </div>
+
+    
       <ReturnsTabs
         activeTab={activeTab}
         setActiveTab={handleTabChange}

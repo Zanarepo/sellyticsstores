@@ -228,146 +228,163 @@ export default function InventoryManager() {
 
   if (loading && inventory.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
-        <p className="mt-4 text-slate-500">Loading inventory...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
+        <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 animate-spin text-indigo-600" />
+        <p className="mt-4 text-sm sm:text-base text-slate-500">Loading inventory...</p>
         <Toaster position="top-right" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
       <Toaster position="top-right" />
 
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Inventory
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              {inventory.length} products • {lowStockItems.length} low stock
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap ${
-              isOnline ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-            }`}>
-              {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {isOnline ? 'Online' : 'Offline'}
+      {/* Header Section */}
+      <div className="w-full bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+        <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 space-y-3 sm:space-y-0">
+          {/* Title and Status Row */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                Inventory
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                {inventory.length} • {lowStockItems.length} low
+              </p>
             </div>
 
-            {pendingCount > 0 && (
-              <button
-                onClick={syncAll}
-                disabled={!isOnline || isSyncing}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                Sync ({pendingCount})
-              </button>
-            )}
+            {/* Status & Actions Row */}
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+              <div className={`flex items-center gap-0.5 sm:gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                isOnline ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              }`}>
+                {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                <span className="hidden xs:inline text-xs">{isOnline ? 'Online' : 'Offline'}</span>
+              </div>
 
-            <button
-              onClick={() => setShowNotifications(true)}
-              className="relative p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50"
-            >
-              <Bell className="w-5 h-5 text-slate-600" />
-              {unreadCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </div>
+              {pendingCount > 0 && (
+                <button
+                  onClick={syncAll}
+                  disabled={!isOnline || isSyncing}
+                  className="flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white rounded-lg text-xs font-medium transition-all active:scale-95 min-h-[32px] sm:min-h-auto flex-shrink-0"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden xs:inline text-xs">Sync</span>
+                  <span className="text-xs font-bold">({pendingCount})</span>
+                </button>
               )}
-            </button>
 
-            <button
-              onClick={() => scanner.openScanner('camera')}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors whitespace-nowrap"
-            >
-              <Scan className="w-4 h-4" />
-              <span className="hidden sm:inline">Scan</span>
-            </button>
+              <button
+                onClick={() => setShowNotifications(true)}
+                className="relative p-2 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors active:scale-95 min-h-[40px] min-w-[40px] flex items-center justify-center flex-shrink-0"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-400" />
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </div>
+                )}
+              </button>
+
+              <button
+                onClick={() => scanner.openScanner('camera')}
+                className="flex items-center justify-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 min-h-[40px] flex-shrink-0"
+              >
+                <Scan className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden xs:inline">Scan</span>
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl overflow-x-auto no-scrollbar">
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="w-full px-0 sm:px-0 py-4 sm:py-6 space-y-3 sm:space-y-4">
+
+        {/* Tabs - Full Width Sticky */}
+        <div className="flex gap-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar px-3 sm:px-4 md:px-6 sticky top-0 z-10">
           <button
             onClick={() => setActiveTab('inventory')}
-            className={`flex-1 min-w-[120px] sm:min-w-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-2.5 sm:py-3 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all border-b-2 min-h-[40px] sm:min-h-auto active:scale-95 ${
               activeTab === 'inventory'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-300'
             }`}
           >
-            <Package className="w-4 h-4" />
-            Inventory
+            <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Inventory</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 min-w-[120px] sm:min-w-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-2.5 sm:py-3 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all border-b-2 min-h-[40px] sm:min-h-auto active:scale-95 ${
               activeTab === 'history'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-300'
             }`}
           >
-            <History className="w-4 h-4" />
-            History
+            <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>History</span>
           </button>
 
           <button
             onClick={() => setActiveTab('evaluation')}
-            className={`flex-1 min-w-[120px] sm:min-w-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-2.5 sm:py-3 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all border-b-2 min-h-[40px] sm:min-h-auto active:scale-95 ${
               activeTab === 'evaluation'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'text-indigo-600 dark:text-indigo-400 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 border-transparent hover:text-slate-900 dark:hover:text-slate-300'
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            Evaluation
+            <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span>Evaluation</span>
           </button>
         </div>
 
         {activeTab === 'inventory' && (
-          <div className="space-y-4">
-            <div className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 py-2 space-y-3">
+          <div className="space-y-2 sm:space-y-3">
+            {/* Search & Filter Section */}
+            <div className="space-y-1.5 sm:space-y-2 px-3 sm:px-4 md:px-6">
+              {/* Search Input */}
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); resetPage(); }}
-                  placeholder="Search products, barcodes, IMEIs..."
-                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Search..."
+                  className="w-full pl-8 sm:pl-10 pr-2.5 sm:pr-3 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] sm:text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              {/* Stock Filters */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 flex-shrink-0" />
                 {['all', 'in', 'low', 'out'].map(filter => (
                   <button
                     key={filter}
                     onClick={() => { setStockFilter(filter); resetPage(); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-xs font-medium whitespace-nowrap transition-all active:scale-95 flex-shrink-0 ${
                       stockFilter === filter
                         ? 'bg-indigo-600 text-white'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                     }`}
                   >
-                    {filter === 'all' ? 'All' : filter === 'in' ? 'In Stock' : filter === 'low' ? 'Low Stock' : 'Out of Stock'}
+                    {filter === 'all' ? 'All' : filter === 'in' ? 'In' : filter === 'low' ? 'Low' : 'Out'}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Products List */}
+            <div className="space-y-1.5 sm:space-y-2 px-3 sm:px-4 md:px-6">
               <AnimatePresence mode="popLayout">
                 {paginatedItems.length === 0 ? (
-                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-                    <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                    <p className="text-slate-500">No products found</p>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
+                    <Package className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 text-slate-300" />
+                    <p className="text-xs text-slate-500">No products</p>
                   </div>
                 ) : (
                   paginatedItems.map(item => (
@@ -381,24 +398,27 @@ export default function InventoryManager() {
               </AnimatePresence>
             </div>
 
+            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 pt-4">
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2 pt-2 sm:pt-4 px-3 sm:px-4 md:px-6">
                 <button
                   onClick={prevPage}
                   disabled={page === 1}
-                  className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-50"
+                  className="p-1.5 sm:p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                  aria-label="Previous page"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
-                <span className="text-sm text-slate-600 dark:text-slate-400">
-                  Page {page} of {totalPages}
+                <span className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 font-medium min-w-fit">
+                  {page}/{totalPages}
                 </span>
                 <button
                   onClick={nextPage}
                   disabled={page === totalPages}
-                  className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-50"
+                  className="p-1.5 sm:p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                  aria-label="Next page"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             )}
@@ -407,6 +427,7 @@ export default function InventoryManager() {
 
         {activeTab === 'history' && <HistoryPage storeId={storeId} />}
         {activeTab === 'evaluation' && <EvaluationPage inventory={inventory} formatPrice={formatPrice} />}
+        </div>
       </div>
 
       {selectedItem && (

@@ -4,7 +4,6 @@ import { supabase } from '../../../supabaseClient';
 import { Download, Printer, Loader2, AlertCircle } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import toast, { Toaster } from 'react-hot-toast';
 import ReceiptPreview from './ReceiptPreview';
 import useReceiptCustomization from './useReceiptCustomization';
 
@@ -160,7 +159,7 @@ export default function ReceiptView() {
 
   return (
     <>
-      <Toaster position="top-right" />
+     
       
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 py-8 px-4">
         <div className="max-w-2xl mx-auto space-y-6">

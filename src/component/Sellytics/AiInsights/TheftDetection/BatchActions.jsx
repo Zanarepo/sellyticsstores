@@ -25,9 +25,9 @@ export default function BatchActions({
           exit={{ opacity: 0, y: -10 }}
           className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4"
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
                 <CheckSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
@@ -40,10 +40,10 @@ export default function BatchActions({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 self-end sm:self-center">
               <button
                 onClick={allSelected ? onClearSelection : onSelectAll}
-                className="px-4 py-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-2 text-sm font-medium"
+                className="px-3 py-2 sm:px-4 sm:py-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-2 text-xs sm:text-sm font-medium"
               >
                 {allSelected ? (
                   <>
@@ -60,7 +60,7 @@ export default function BatchActions({
 
               <button
                 onClick={onBatchDelete}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2 text-xs sm:text-sm font-medium"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete Selected

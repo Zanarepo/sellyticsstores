@@ -83,16 +83,51 @@ export default function useScanner(onScanSuccess) {
   const sanitizeBarcode = useCallback((code) => {
     if (!code || typeof code !== 'string') return '';
 
-    // Remove all ASCII control characters (0–31 and 127) using Unicode escapes
-    // This avoids the no-control-regex lint rule completely
-    return code
-      .replace(/[-\u001F\u007F]/gu, '')
-      .trim();
+    let sanitized = '';
+    for (let i = 0; i < code.length; i++) {
+      const charCode = code.charCodeAt(i);
+      if ((charCode >= 32 && charCode < 127)) {
+        sanitized += code[i];
+      }
+    }
+    return sanitized.trim();
   }, []);
 
-
-
-
+  
+  // Stop camera
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+  
+  // Open scanner
+  const openScanner = useCallback((mode = 'camera', lineId = null) => {
+    setScannerMode(mode);
+    setShowScanner(true);
+    setError(null);
+    setManualInput('');
+    setTargetLineId(lineId);
+  }, []);
+  
+  // Close scanner
+  const closeScanner = useCallback(() => {
+    stopCamera();
+    setShowScanner(false);
+    setError(null);
+    setManualInput('');
+    setTargetLineId(null);
+  }, [stopCamera]);
 
   // Handle successful scan
   const handleScan = useCallback(async (code, lineId = null) => {
@@ -134,7 +169,7 @@ export default function useScanner(onScanSuccess) {
       toast.error(err.message || 'Scan failed');
       setError(err.message || 'Scan failed');
     }
-  }, [onScanSuccess, continuousScan, targetLineId, playSuccessSound, playErrorSound, sanitizeBarcode]);
+  }, [onScanSuccess, continuousScan, targetLineId, playSuccessSound, playErrorSound, sanitizeBarcode, closeScanner]);
   
   // Start camera
   const startCamera = useCallback(async () => {
@@ -165,41 +200,6 @@ export default function useScanner(onScanSuccess) {
       setIsLoading(false);
     }
   }, []);
-  
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
-  
-  // Open scanner
-  const openScanner = useCallback((mode = 'camera', lineId = null) => {
-    setScannerMode(mode);
-    setShowScanner(true);
-    setError(null);
-    setManualInput('');
-    setTargetLineId(lineId);
-  }, []);
-  
-  // Close scanner
-  const closeScanner = useCallback(() => {
-    stopCamera();
-    setShowScanner(false);
-    setError(null);
-    setManualInput('');
-    setTargetLineId(null);
-  }, [stopCamera]);
   
   // Handle manual input
   const handleManualSubmit = useCallback(async () => {

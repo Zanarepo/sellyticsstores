@@ -14,6 +14,7 @@ import MockupScreens from './MockupScreens';
 import Footer from './Footer';
 import Navbar from './Navbar';
 import WhatsAppChatPopup from './WhatsAppChatPopup';
+//import WarehouseCTASection from './WarehouseCTASection';
 
 export default function LandingPage() {
   return (
@@ -25,9 +26,10 @@ export default function LandingPage() {
       <FeatureScreens />
       <FeaturesSection />
       <MockupScreens />
-      <HowItWorksSection />
-      <UseCasesSection />
+         {/*<WarehouseCTASection/> 
       {/*<TeamSection>*/}
+      <HowItWorksSection />
+       <UseCasesSection />
       <PricingSection />
       <TestimonialsSection />s
       <FAQSection />

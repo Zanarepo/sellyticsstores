@@ -77,15 +77,18 @@ export default function DebtsManager() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <DeviceDebtRepayment />
 
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 md:py-8 space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Debts Overview</h1>
+        <div className="flex flex-wrap gap-4 justify-between items-center">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Debts Overview</h1>
           <button
             onClick={() => setEditing({})} // Opens modal for new debt
-            className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            className="px-4 py-2 sm:px-5 sm:py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
           >
-            Add New Debt
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            <span className="hidden sm:inline">Add New Debt</span>
           </button>
         </div>
 
@@ -96,10 +99,10 @@ export default function DebtsManager() {
             placeholder="Search by customer, product, phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-indigo-500"
           />
           <svg
-            className="absolute left-3 top-3.5 w-5 h-5 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

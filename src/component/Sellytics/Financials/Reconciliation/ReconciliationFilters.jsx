@@ -1,7 +1,6 @@
 import React from 'react';
 import { Store, Calendar, Filter, Download, Plus, RefreshCw } from 'lucide-react';
 
-
 export default function ReconciliationFilters({
   stores,
   storeId,
@@ -19,28 +18,17 @@ export default function ReconciliationFilters({
   isLoading,
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center">
-            <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Filters & Controls</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Configure your reconciliation view</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+    <div className="bg-white dark:bg-slate-800 sm:rounded-2xl border-y sm:border-x border-slate-200 dark:border-slate-700 p-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        
         {/* Store Select */}
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            <Store className="w-4 h-4" />
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+            <Store className="w-3.5 h-3.5" />
             Store
           </label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
+            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
             value={storeId}
             onChange={(e) => {
               const newStoreId = e.target.value;
@@ -59,12 +47,12 @@ export default function ReconciliationFilters({
 
         {/* Time Period */}
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            <Calendar className="w-4 h-4" />
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+            <Calendar className="w-3.5 h-3.5" />
             Period
           </label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
+            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
             value={timePeriod}
             onChange={(e) => {
               setTimePeriod(e.target.value);
@@ -80,13 +68,13 @@ export default function ReconciliationFilters({
 
         {/* Date */}
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            <Calendar className="w-4 h-4" />
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+            <Calendar className="w-3.5 h-3.5" />
             Date
           </label>
           <input
             type="date"
-            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
+            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
             value={checkDate}
             onChange={(e) => {
               setCheckDate(e.target.value);
@@ -98,12 +86,12 @@ export default function ReconciliationFilters({
 
         {/* Payment Method */}
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            <Filter className="w-4 h-4" />
+          <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+            <Filter className="w-3.5 h-3.5" />
             Payment
           </label>
           <select
-            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
+            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white transition-all"
             value={selectedPaymentMethod}
             onChange={(e) => setSelectedPaymentMethod(e.target.value)}
             disabled={isLoading}
@@ -115,37 +103,36 @@ export default function ReconciliationFilters({
           </select>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 opacity-0">Actions</label>
+        {/* Main Actions */}
+        <div className="col-span-2 sm:col-span-1 md:col-span-2 lg:col-span-2">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5 block opacity-0">Actions</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={onApplyFilters}
               disabled={isLoading || !storeId || !checkDate}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl font-medium transition-all hover:shadow-lg disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
             >
               <RefreshCw className="w-4 h-4" />
+              <span className="hidden sm:inline">Apply</span>
             </button>
             <button
               onClick={onAddCheck}
               disabled={isLoading || !storeId || !checkDate}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-xl font-medium transition-all hover:shadow-lg disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Check</span>
+            </button>
+            <button
+              onClick={onExportCSV}
+              disabled={isLoading}
+              className="col-span-2 inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors rounded-lg"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 rounded-b-2xl">
-        <button
-          onClick={onExportCSV}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Export to CSV
-        </button>
       </div>
     </div>
   );

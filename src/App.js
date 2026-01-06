@@ -2,7 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 //import HomePage from "./component/HomePage";
 import { CurrencyProvider } from "./component/context/currencyContext";
-
+import WarehouseLanding from "./component/Sellytics/Hub/WarehouseLandingPage/WarehouseLanding";
 import LandingFooterLayout from "./component/LandingFooterLayout";
 import Navbar from "./component/Navbar";
 import Registration from "./component/Auth/Registration";
@@ -72,6 +72,8 @@ const App = () => {
             </Route>
  
             <Route path="/" element={<LandingPage />} />
+              <Route path="/warehouse" element={<WarehouseLanding />} />
+            
             {/* Private / Authenticated Routes (no shared layout) */}
          
             

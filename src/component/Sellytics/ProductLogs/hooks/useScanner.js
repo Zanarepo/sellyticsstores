@@ -63,6 +63,29 @@ const stopCamera = useCallback(() => {
   }
 }, []);
 
+    
+    // --- MODAL/FLOW ACTIONS ---
+
+    // Open scanner now accepts the type ('unique' or 'standard')
+    const openScanner = useCallback((type = 'standard', mode = 'external') => {
+        setScanningFor(type);
+        setScannedItems([]); // Reset items when opening
+        setScannerMode(mode);
+        setShowScanner(true);
+        setError(null);
+        setManualInput('');
+    }, []);
+
+    // Close scanner
+  const closeScanner = useCallback(() => {
+  stopCamera();
+  setShowScanner(false);
+  setManualInput('');
+  setError(null);
+  setScannedItems([]);
+  setScanningFor('standard');
+}, [stopCamera]);
+
 
     // --- Core logic to handle a single scanned code ---
    const processScannedCode = useCallback((barcode) => {
@@ -104,7 +127,7 @@ const stopCamera = useCallback(() => {
     // ✅ UNIQUE → keep accumulating
     return [...prev, newItem];
   });
-}, [scanningFor, onScanItem, onScanComplete]);
+}, [scanningFor, onScanItem, onScanComplete, closeScanner]);
 
     
     // --- External Scanner Handler (useEffect) ---
@@ -185,30 +208,7 @@ const stopCamera = useCallback(() => {
     const completeScanning = useCallback(() => {
   onScanComplete?.(scannedItems);
   closeScanner();
-}, [scannedItems, onScanComplete]);
-
-    
-    // --- MODAL/FLOW ACTIONS ---
-
-    // Open scanner now accepts the type ('unique' or 'standard')
-    const openScanner = useCallback((type = 'standard', mode = 'external') => {
-        setScanningFor(type);
-        setScannedItems([]); // Reset items when opening
-        setScannerMode(mode);
-        setShowScanner(true);
-        setError(null);
-        setManualInput('');
-    }, []);
-
-    // Close scanner
-  const closeScanner = useCallback(() => {
-  stopCamera();
-  setShowScanner(false);
-  setManualInput('');
-  setError(null);
-  setScannedItems([]);
-  setScanningFor('standard');
-}, [stopCamera]);
+}, [scannedItems, onScanComplete, closeScanner]);
 
     // --- EXPORTS ---
     return {

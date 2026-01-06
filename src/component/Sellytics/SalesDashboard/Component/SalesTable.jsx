@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import {
   Package,
-  Calendar,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -145,73 +144,64 @@ export default function SalesTable({ data = [] }) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 cursor-pointer"
+                className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-300 cursor-pointer"
                 onClick={() => openProductModal(sale.productId)}
               >
-                {/* Mobile & Desktop Layout */}
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                {/* Compact Layout */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   {/* Left: Product Info */}
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className="w-14 h-14 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
-                      <Package className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 flex-shrink-0 rounded-lg sm:rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                      <Package className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400" />
                     </div>
-
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                      <h3 className="font-semibold text-slate-900 dark:text-white leading-tight truncate text-sm sm:text-base">
                         <a
                           href={sale.productUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="text-indigo-600 dark:text-indigo-400 hover:underline break-words"
+                          className="text-indigo-600 dark:text-indigo-400 hover:underline"
                         >
                           {sale.productName}
                         </a>
                       </h3>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-slate-600 dark:text-slate-400">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 flex-shrink-0" />
-                          <span className="truncate">{sale.displayDate}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <TrendIcon direction={trendDir} />
-                          <span className={`font-medium ${
-                            trendDir === 'up' ? 'text-green-600' :
-                            trendDir === 'down' ? 'text-red-600' : 'text-gray-500'
-                          }`}>
-                            {trendPercent ? `${Math.abs(trendPercent).toFixed(1)}% MoM` : 'No trend'}
-                          </span>
-                        </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1 truncate">
+                        {sale.displayDate}
                       </div>
                     </div>
                   </div>
 
-                  {/* Right: Sales Metrics - Stacked on mobile, side-by-side on lg+ */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-8 lg:gap-12">
-                    <div className="text-center sm:text-right">
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Quantity Sold</p>
-                      <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  {/* Right: Sales Metrics & Trend */}
+                  <div className="flex items-center justify-between mt-2 sm:mt-0 sm:justify-end gap-4 sm:gap-5 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <TrendIcon direction={trendDir} />
+                      <span className={`font-medium text-xs sm:text-sm ${
+                        trendDir === 'up' ? 'text-green-600' :
+                        trendDir === 'down' ? 'text-red-600' : 'text-gray-500'
+                      }`}>
+                        {trendPercent ? `${Math.abs(trendPercent).toFixed(0)}%` : '--'}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400">
                         {sale.quantity}
+                      </p>
+                      <p className="text-2xs sm:text-xs text-slate-500 dark:text-slate-400 -mt-1">
+                        units
                       </p>
                     </div>
 
-                    <div className="text-center sm:text-right">
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Total Revenue</p>
-                      <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+                    <div className="text-right">
+                      <p className="text-sm sm:text-base font-bold text-green-600 dark:text-green-400">
                         {formatCurrency(sale.totalSales)}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        @ {formatCurrency(sale.unitPrice)} each
+                       <p className="text-2xs sm:text-xs text-slate-500 dark:text-slate-400 -mt-1">
+                        {sale.unitPrice > 0 ? `@ ${formatCurrency(sale.unitPrice)}` : 'revenue'}
                       </p>
                     </div>
                   </div>
-                </div>
-
-                {/* Mobile hint */}
-                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 lg:hidden text-center text-sm text-slate-500">
-                  Tap card for trend details →
                 </div>
               </motion.div>
             );

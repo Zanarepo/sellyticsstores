@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Trash2, Loader2, FileText } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
 import useReceiptManager from './useReceiptManager';
 import useReceiptCustomization from './useReceiptCustomization';
 import SaleGroupsList from './SaleGroupsList';
@@ -91,7 +90,7 @@ export default function ReceiptManager() {
 
   return (
     <>
-      <Toaster position="top-right" />
+    
       
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-0 md:p-8">
         <div className="max-w-7xl mx-auto space-y-6">

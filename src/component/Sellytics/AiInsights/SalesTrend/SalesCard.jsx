@@ -21,30 +21,33 @@ const SalesCard = forwardRef(({ trend, topProducts, onClick }, ref) => {
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
       className={`
-        relative p-4 bg-white dark:bg-slate-800 rounded-xl border
-        transition-all duration-200 hover:shadow-lg cursor-pointer
-        ${isPositive ? 'border-emerald-200 dark:border-emerald-700' : 'border-red-200 dark:border-red-800'}
+        p-2.5 sm:p-3 bg-white dark:bg-slate-800 rounded-lg border
+        transition-all duration-200 hover:shadow-md cursor-pointer
+        flex items-center justify-between gap-2
+        ${isPositive ? 'border-emerald-200/80 dark:border-emerald-700/60' : 'border-red-200/80 dark:border-red-800/60'}
       `}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">{month}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Total Sales: {total_quantity}
+      <div className="flex-grow overflow-hidden">
+        <h3 className="font-semibold text-slate-800 dark:text-white text-sm">{month}</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          Units Sold: {total_quantity}
+        </p>
+        {topProductName && (
+          <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1 flex items-center gap-1.5">
+            <BarChart2 className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">
+              {topProductName} ({topProductQty})
+            </span>
           </p>
-          {topProductName && (
-            <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 flex items-center gap-1">
-              <BarChart2 className="w-3 h-3" />
-              Top: {topProductName} ({topProductQty})
-            </p>
-          )}
-        </div>
-        <div className={`text-sm font-semibold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} flex items-center gap-1`}>
-          <TrendingUp className="w-4 h-4" />
-          {isPositive ? '⬆' : '⬇'} {Math.round(monthly_growth * 100)}%
-        </div>
+        )}
       </div>
-      <ChevronRight className="absolute top-4 right-4 w-5 h-5 text-slate-400" />
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className={`text-xs sm:text-sm font-bold ${isPositive ? 'text-green-500' : 'text-red-500'} flex items-center gap-1`}>
+          <TrendingUp className="w-3.5 h-3.5" />
+          <span>{isPositive ? '▲' : '▼'}{Math.round(Math.abs(monthly_growth * 100))}%</span>
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+      </div>
     </motion.div>
   );
 });

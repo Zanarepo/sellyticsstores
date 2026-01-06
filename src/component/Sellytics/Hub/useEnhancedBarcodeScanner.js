@@ -1,5 +1,5 @@
 // useEnhancedBarcodeScanner.js - Delete & Clear All Fixed (Optimistic + Reliable)
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../../../supabaseClient";
 import toast from "react-hot-toast";
 
@@ -20,6 +20,16 @@ export function useEnhancedBarcodeScanner({
       inputRef.current.focus();
     }
   }, [isListening, scannedItems]);
+
+  const notifyUpdate = useCallback((items) => {
+    const values = items.map((i) => i.scanned_value?.toLowerCase().trim()).filter(Boolean);
+    const unique = new Set(values).size;
+    onScanUpdate?.({
+      total: items.length,
+      unique,
+      duplicates: items.length - unique,
+    });
+  }, [onScanUpdate]);
 
   // Load + real-time
   useEffect(() => {
@@ -68,17 +78,7 @@ export function useEnhancedBarcodeScanner({
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [sessionId]);
-
-  const notifyUpdate = (items) => {
-    const values = items.map((i) => i.scanned_value?.toLowerCase().trim()).filter(Boolean);
-    const unique = new Set(values).size;
-    onScanUpdate?.({
-      total: items.length,
-      unique,
-      duplicates: items.length - unique,
-    });
-  };
+  }, [sessionId, notifyUpdate]);
 
   const playSound = (type = "success") => {
     if (!soundEnabled) return;

@@ -181,118 +181,127 @@ export default function ReceiptsList({
 
       {/* Card View */}
       {viewMode === VIEW_MODES.CARD && (
-        <div className="space-y-4">
-          <AnimatePresence>
-            {receipts.map((receipt, index) => (
-              <motion.div
-                key={receipt.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: index * 0.02 }}
-                onClick={() => onViewQRCode(receipt)}
-                className="relative p-4 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer hover:shadow-lg"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/30">
-                    <QrCode className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                  </div>
+  <div className="space-y-2 sm:space-y-3">
+    <AnimatePresence>
+      {receipts.map((receipt, index) => (
+        <motion.div
+          key={receipt.id}
+          layout
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ delay: index * 0.02 }}
+          onClick={() => onViewQRCode(receipt)}
+          className="relative p-2.5 sm:p-3 w-full bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 transition-all cursor-pointer hover:shadow-lg"
+        >
+          <div className="flex items-start gap-2 sm:gap-3">
+            {/* Icon - Smaller on mobile */}
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/30">
+              <QrCode className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-slate-900 dark:text-white truncate pr-2">
-                          {receipt.receipt_id}
-                        </h3>
+            <div className="flex-1 min-w-0">
+              {/* Top Row: Receipt ID + Action Buttons */}
+              <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
+                <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                  {receipt.receipt_id}
+                </h3>
 
-                        {receipt.customer_name && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Customer:</span> {receipt.customer_name}
-                          </span>
-                        )}
+                {/* Compact Action Buttons */}
+                <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(receipt); }}
+                    className="p-1 sm:p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600 dark:text-slate-400" />
+                  </button>
 
-                        {receipt.phone_number && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Phone:</span> {receipt.phone_number}
-                          </span>
-                        )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onViewQRCode(receipt); }}
+                    className="p-1 sm:p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title="QR"
+                  >
+                    <QrCode className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600 dark:text-slate-400" />
+                  </button>
 
-                        {receipt.warranty && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">Warranty:</span> {receipt.warranty}
-                          </span>
-                        )}
-                      </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDownloadPDF(receipt); }}
+                    className="p-1 sm:p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title="PDF"
+                  >
+                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600 dark:text-slate-400" />
+                  </button>
 
-                      {/* Action Buttons - Smaller Icons */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onEdit(receipt); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-3.5 h-3.5 text-slate-600" />
-                        </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePrint(receipt); }}
+                    className="p-1 sm:p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title="Print"
+                  >
+                    <Printer className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600 dark:text-slate-400" />
+                  </button>
 
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onViewQRCode(receipt); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                          title="View QR"
-                        >
-                          <QrCode className="w-3.5 h-3.5 text-slate-600" />
-                        </button>
-
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDownloadPDF(receipt); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                          title="Download PDF"
-                        >
-                          <Download className="w-3.5 h-3.5 text-slate-600" />
-                        </button>
-
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handlePrint(receipt); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                          title="Print"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-slate-600" />
-                        </button>
-
-                        {canDelete && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm('Delete this receipt and entire sale?')) {
-                                onDelete(receipt.id);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                      {new Date(receipt.date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  </div>
+                  {canDelete && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('Delete this receipt and entire sale?')) {
+                          onDelete(receipt.id);
+                        }
+                      }}
+                      className="p-1 sm:p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-600 dark:text-red-400" />
+                    </button>
+                  )}
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
+              </div>
+
+              {/* Details Grid - Super Compact */}
+              <div className="space-y-0.5 sm:space-y-1">
+                {receipt.customer_name && (
+                  <div className="flex items-start gap-1 text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Customer:</span>
+                    <span className="truncate">{receipt.customer_name}</span>
+                  </div>
+                )}
+
+                {receipt.phone_number && (
+                  <div className="flex items-start gap-1 text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Phone:</span>
+                    <span className="truncate">{receipt.phone_number}</span>
+                  </div>
+                )}
+
+                {receipt.warranty && (
+                  <div className="flex items-start gap-1 text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Warranty:</span>
+                    <span className="truncate">{receipt.warranty}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Date - Compact */}
+              <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 dark:border-slate-700">
+                <div className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400">
+                  {new Date(receipt.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ))}
+    </AnimatePresence>
+  </div>
+)}
+    
     </div>
   );
 }

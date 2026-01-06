@@ -110,98 +110,98 @@ export default function HistoryPage({ storeId, productId }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+      <div className="flex items-center justify-center py-8 sm:py-12 px-3">
+        <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-indigo-600" />
       </div>
     );
   }
   
   // ==================== RENDER ====================
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5 sm:space-y-3">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Activity History</h2>
-          <p className="text-sm text-slate-500 mt-1">{filteredActivities.length} record{filteredActivities.length !== 1 ? 's' : ''}</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 sm:gap-3 px-3 sm:px-4 md:px-6">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">Activity History</h2>
+          <p className="text-[9px] sm:text-xs text-slate-500 mt-0.5">{filteredActivities.length} record{filteredActivities.length !== 1 ? 's' : ''}</p>
         </div>
         <button
           onClick={fetchActivities}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 transition-colors active:scale-95 text-xs sm:text-sm font-medium flex-shrink-0"
         >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
+          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span className="hidden xs:inline">Refresh</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+      <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 p-2 sm:p-3 space-y-2 mx-3 sm:mx-4 md:mx-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by product, user, or reason..."
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm"
+            placeholder="Search..."
+            className="w-full pl-8 sm:pl-10 pr-2.5 sm:pr-3 py-1.5 sm:py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] sm:text-xs"
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg">
+        <div className="flex flex-col gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-0.5 overflow-x-auto pb-0.5">
             {['all', 'today', 'week', 'month'].map(filter => (
               <button
                 key={filter}
                 onClick={() => setDateFilter(filter)}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                className={`px-1.5 sm:px-2.5 py-1 rounded text-[9px] sm:text-xs font-medium transition-colors flex-shrink-0 ${
                   dateFilter === filter
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                {filter === 'all' ? 'All Time' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {filter === 'all' ? 'All' : filter === 'today' ? 'Today' : filter.charAt(0).toUpperCase() + filter.slice(1)}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg">
+          <div className="flex items-center gap-0.5 overflow-x-auto pb-0.5">
             <button
               onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                typeFilter === 'all' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'
+              className={`px-1.5 sm:px-2.5 py-1 rounded text-[9px] sm:text-xs font-medium transition-colors flex-shrink-0 ${
+                typeFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
               }`}
             >
-              All Types
+              All
             </button>
             <button
               onClick={() => setTypeFilter('increase')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                typeFilter === 'increase' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'
+              className={`flex items-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded text-[9px] sm:text-xs font-medium transition-colors flex-shrink-0 ${
+                typeFilter === 'increase' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
               }`}
             >
-              <Plus className="w-3 h-3" />
-              Increase
+              <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden xs:inline">Add</span>
             </button>
             <button
               onClick={() => setTypeFilter('decrease')}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                typeFilter === 'decrease' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'
+              className={`flex items-center gap-0.5 px-1.5 sm:px-2.5 py-1 rounded text-[9px] sm:text-xs font-medium transition-colors flex-shrink-0 ${
+                typeFilter === 'decrease' ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
               }`}
             >
-              <Minus className="w-3 h-3" />
-              Decrease
+              <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              <span className="hidden xs:inline">Remove</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Activity List */}
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2 px-3 sm:px-4 md:px-6">
         <AnimatePresence>
           {filteredActivities.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-              <History className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p className="text-slate-500">No activities found</p>
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
+              <History className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs sm:text-sm text-slate-500">No activities</p>
             </div>
           ) : (
             filteredActivities.map((activity, index) => (
@@ -211,60 +211,61 @@ export default function HistoryPage({ storeId, productId }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 sm:p-3 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="flex items-start gap-2 sm:gap-2.5 flex-1 min-w-0">
+                    <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       activity.difference > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'
                     }`}>
                       {activity.difference > 0 ? (
-                        <Plus className="w-5 h-5 text-emerald-600" />
+                        <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                       ) : (
-                        <Minus className="w-5 h-5 text-red-600" />
+                        <Minus className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-slate-900 dark:text-white">
-                          {activity.dynamic_product?.name || 'Unknown Product'}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                          {activity.dynamic_product?.name || 'Unknown'}
                         </h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          activity.difference > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        <span className={`px-1.5 py-0.5 rounded text-[8px] sm:text-xs font-medium flex-shrink-0 ${
+                          activity.difference > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
                         }`}>
                           {activity.difference > 0 ? '+' : ''}{activity.difference}
                         </span>
                       </div>
 
-                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                          <Package className="w-4 h-4" />
-                          <span>{activity.old_quantity} → {activity.new_quantity} units</span>
+                      <div className="mt-1.5 space-y-0.5 text-[9px] sm:text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                          <Package className="w-3 h-3 flex-shrink-0" />
+                          <span>{activity.old_quantity}→{activity.new_quantity}</span>
                         </div>
                         
                         {activity.updated_by_email && (
-                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                            <User className="w-4 h-4" />
+                          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                            <User className="w-3 h-3 flex-shrink-0" />
                             <span className="truncate">{activity.updated_by_email}</span>
                           </div>
                         )}
                       </div>
 
                       {activity.reason && (
-                        <div className="mt-2 px-3 py-2 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                          <p className="text-sm text-slate-600 dark:text-slate-400">{activity.reason}</p>
+                        <div className="mt-1 px-2 py-1 bg-slate-50 dark:bg-slate-900 rounded text-[8px] sm:text-xs text-slate-600 dark:text-slate-400 truncate">
+                          {activity.reason}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end text-xs text-slate-500">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(activity.created_at).toLocaleDateString()}
+                  <div className="flex flex-col items-end text-[8px] sm:text-xs text-slate-500 flex-shrink-0 text-right">
+                    <div className="flex items-center gap-0.5">
+                      <Calendar className="w-2.5 h-2.5" />
+                      <span className="hidden xs:inline">{new Date(activity.created_at).toLocaleDateString()}</span>
+                      <span className="xs:hidden">{new Date(activity.created_at).toLocaleDateString('en', { month: '2-digit', day: '2-digit' })}</span>
                     </div>
-                    <div className="mt-1">{new Date(activity.created_at).toLocaleTimeString()}</div>
+                    <div className="mt-0.5 hidden sm:block">{new Date(activity.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   </div>
                 </div>
               </motion.div>

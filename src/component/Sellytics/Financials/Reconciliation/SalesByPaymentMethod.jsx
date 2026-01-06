@@ -8,6 +8,15 @@ const methodIcons = {
   'Card': CreditCard,
   'Bank Transfer': Building2,
   'Wallet': Wallet,
+  'default': CreditCard,
+};
+
+const colorMap = {
+  'Cash': { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400' },
+  'Card': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400' },
+  'Bank Transfer': { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400' },
+  'Wallet': { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400' },
+  'default': { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-400' },
 };
 
 export default function SalesByPaymentMethod({ salesByPaymentMethod }) {
@@ -15,46 +24,42 @@ export default function SalesByPaymentMethod({ salesByPaymentMethod }) {
 
   if (Object.keys(salesByPaymentMethod).length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center">
-        <p className="text-slate-500 dark:text-slate-400">No sales data available</p>
+      <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-6 border border-slate-200 dark:border-slate-700 text-center">
+        <p className="text-sm text-slate-500 dark:text-slate-400">No sales data available by payment method</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Sales by Payment Method</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Breakdown of transactions</p>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      {Object.entries(salesByPaymentMethod).map(([method, data], idx) => {
+        const Icon = methodIcons[method] || methodIcons['default'];
+        const colors = colorMap[method] || colorMap['default'];
 
-      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(salesByPaymentMethod).map(([method, data], idx) => {
-          const Icon = methodIcons[method] || CreditCard;
-          return (
-            <motion.div
-              key={method}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 hover:shadow-md transition-all"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <h4 className="font-semibold text-slate-900 dark:text-white">{method}</h4>
+        return (
+          <motion.div
+            key={method}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-slate-200 dark:border-slate-700"
+          >
+            <div className="flex items-start gap-2 sm:gap-3 flex-col sm:flex-row">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${colors.bg} flex items-center justify-center flex-shrink-0`}>
+                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${colors.text}`} />
               </div>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
-                {formatPrice(data.amount)}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {data.count} transaction{data.count !== 1 ? 's' : ''}
-              </p>
-            </motion.div>
-          );
-        })}
-      </div>
+              <div className="min-w-0">
+                <p className="text-[9px] sm:text-xs text-slate-500 leading-tight truncate">
+                  {method}
+                </p>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                  {formatPrice(data.amount)}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

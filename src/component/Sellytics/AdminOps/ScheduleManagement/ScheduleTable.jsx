@@ -87,7 +87,7 @@ export default function ScheduleTable({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => openDetails(schedule)}
-                className={`relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm transition-all cursor-pointer
+                className={`relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm transition-all cursor-pointer
                   ${showArchivedStyle ? 'opacity-60 grayscale' : 'hover:shadow-lg'}
                 `}
               >
@@ -140,24 +140,24 @@ export default function ScheduleTable({
                   />
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-between gap-6">
+                <div className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-6">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400" />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-lg text-slate-900 dark:text-white">
+                      <h3 className="font-semibold text-base sm:text-lg text-slate-900 dark:text-white">
                         {schedule.store_users?.full_name || 'Unknown Staff'}
                       </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-2">
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         {format(parseISO(schedule.start_date), 'MMM d, yyyy')} → {format(parseISO(schedule.end_date), 'MMM d, yyyy')}
                       </p>
 
                       <div className="mt-4 flex flex-wrap items-center gap-4">
                         <span
-                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold
                             ${statusConfig.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : ''}
                             ${statusConfig.color === 'gray' ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' : ''}
                             ${statusConfig.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' : ''}

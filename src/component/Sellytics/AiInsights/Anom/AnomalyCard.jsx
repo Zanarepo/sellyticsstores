@@ -38,38 +38,41 @@ export default function AnomalyCard({ anomaly, onDelete }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow relative"
+      className="bg-white dark:bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow relative"
     >
       {/* Top row: Icon + Title + Menu */}
       <div className="flex items-start justify-between gap-3">
         {/* Left: Icon + Title */}
-        <div className="flex items-start gap-3 flex-1">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
           <div
-            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
               isHigh
                 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                 : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
             }`}
           >
-            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base sm:text-lg text-slate-900 dark:text-white truncate">
+            <h3 className="font-semibold text-sm sm:text-base text-slate-800 dark:text-white truncate">
               {anomaly.dynamic_product?.name || 'Unknown Product'}
             </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-medium">{anomaly.quantity}</span> units sold
+            </p>
           </div>
         </div>
 
         {/* Right: MoreVertical Menu */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             ref={buttonRef}
             onClick={(e) => {
               e.stopPropagation();
               setShowDropdown((prev) => !prev);
             }}
-            className="p-2 -mr-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <MoreVertical className="w-5 h-5 text-slate-500 dark:text-slate-400" />
           </button>
@@ -95,10 +98,10 @@ export default function AnomalyCard({ anomaly, onDelete }) {
         </div>
       </div>
 
-      {/* Bottom row: Badge + Details */}
-      <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      {/* Bottom row: Badge + Date */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span
-          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
             isHigh
               ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
               : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
@@ -107,15 +110,10 @@ export default function AnomalyCard({ anomaly, onDelete }) {
           {anomaly.anomaly_type} Anomaly
         </span>
 
-        <div className="text-sm text-slate-600 dark:text-slate-300">
-          <span className="font-medium">Quantity:</span> {anomaly.quantity} units
-        </div>
-
-        <div className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="text-xs text-slate-500 dark:text-slate-400">
           {new Date(anomaly.sold_at).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
-            year: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
           })}

@@ -1,5 +1,5 @@
 // components/attendance/AttendanceDashboard.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useAttendance } from './useAttendance';
 import StatsCards from './StatsCards';
 import AttendanceTable from './AttendanceTable';
@@ -64,10 +64,14 @@ export default function AttendanceDashboard() {
     }
   };
 
-  const handleScan = (code) => {
+  const handleScan = useCallback((code) => {
     clockInOut(code);
     setScanOpen(false);
-  };
+  }, [clockInOut]);
+
+  const handleCloseScan = useCallback(() => {
+    setScanOpen(false);
+  }, []);
 
   if (loading) return <div className="text-center py-12 sm:py-16">Loading attendance data...</div>;
   if (error) return <div className="text-center py-12 sm:py-16 text-red-600">{error}</div>;
@@ -216,7 +220,7 @@ export default function AttendanceDashboard() {
 
       {/* Modals */}
       <BarcodeModal isOpen={barcodeOpen} onClose={() => setBarcodeOpen(false)} storeId={storeId} />
-      <ScanModal isOpen={scanOpen} onClose={() => setScanOpen(false)} onScan={handleScan} />
+      <ScanModal isOpen={scanOpen} onClose={handleCloseScan} onScan={handleScan} />
       <PermissionModal
         isOpen={permissionOpen}
         onClose={() => setPermissionOpen(false)}

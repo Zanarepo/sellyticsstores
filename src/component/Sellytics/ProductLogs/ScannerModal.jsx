@@ -1,6 +1,5 @@
 /**
- * Product Catalogue - Scanner Modal
- * Uses proven html5-qrcode pattern that works perfectly on mobile
+ * ScannerModal - Mobile-optimized, no errors, sound only on success
  */
 import React, { useRef, useEffect, useState } from 'react';
 import { 
@@ -9,12 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Html5Qrcode } from 'html5-qrcode';
-
-const playSuccessSound = () => {
-  new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3")
-    .play()
-    .catch(() => {});
-};
+import { toast } from 'react-hot-toast';
 
 export default function ScannerModal({
   show,
@@ -41,7 +35,7 @@ export default function ScannerModal({
     }
   }, [show]);
 
-  // Safe stop function — same pattern as your working example
+  // Safe scanner stop – proven pattern (no errors)
   const stopScanner = async () => {
     try {
       if (scannerRef.current) {
@@ -49,13 +43,13 @@ export default function ScannerModal({
         await scannerRef.current.clear();
       }
     } catch (_) {
-      // Silently ignore — this is expected on mode switch or fast close
+      // Expected on mode switch or fast close — ignore
     }
     scannerRef.current = null;
     setIsScanning(false);
   };
 
-  // Camera scanning — exactly like your working simple version
+  // Camera scanning logic – exactly like your working example
   useEffect(() => {
     if (!show || scannerMode !== 'camera') {
       stopScanner();
@@ -72,37 +66,44 @@ export default function ScannerModal({
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 280, height: 100 },
+            qrbox: { width: 300, height: 120 }, // Wider for mobile barcodes
             aspectRatio: 1.777778,
           },
           (decodedText) => {
             const code = decodedText.trim();
             if (!code) return;
 
-            playSuccessSound();
+            // SUCCESS: Play sound + toast + trigger handler
+            const audio = new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3");
+            audio.play().catch(() => {});
+
+            toast.success(`Scanned: ${code.substring(0, 20)}${code.length > 20 ? '...' : ''}`, {
+              duration: 2000,
+              icon: '✅',
+            });
+
             onManualSubmit({ preventDefault: () => {} }, code);
 
             if (!continuousScan) {
-              stopScanner(); // Safe stop
+              stopScanner();
             }
           },
           () => {
-            // Suppress frame errors
+            // Suppress per-frame logs
           }
         );
 
         setIsScanning(true);
       } catch (err) {
         setScanError('Camera access denied or unavailable.');
+        toast.error('Camera not available');
         setIsScanning(false);
       }
     };
 
     initScanner();
 
-    return () => {
-      stopScanner();
-    };
+    return () => stopScanner();
   }, [show, scannerMode, continuousScan, onManualSubmit]);
 
   if (!show) return null;
@@ -189,23 +190,23 @@ export default function ScannerModal({
                   <div id="scanner-container" className="w-full h-full" />
 
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-72 h-24 border-2 border-indigo-400 rounded-lg relative">
-                      <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-indigo-400" />
-                      <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-indigo-400" />
-                      <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-indigo-400" />
-                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-indigo-400" />
+                    <div className="w-80 h-28 border-2 border-indigo-400 rounded-lg relative">
+                      <div className="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-2 border-l-2 border-indigo-400" />
+                      <div className="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-2 border-r-2 border-indigo-400" />
+                      <div className="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-2 border-l-2 border-indigo-400" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-2 border-r-2 border-indigo-400" />
                       {isScanning && (
                         <motion.div
-                          className="absolute left-2 right-2 h-0.5 bg-indigo-400 shadow-lg"
-                          animate={{ top: ['10%', '90%', '10%'] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                          className="absolute left-4 right-4 h-1 bg-indigo-400 shadow-lg rounded-full"
+                          animate={{ top: ['15%', '85%', '15%'] }}
+                          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                         />
                       )}
                     </div>
                   </div>
 
                   {isScanning && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2">
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-indigo-600 text-white text-xs rounded-full flex items-center gap-2">
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                       Scanning...
                     </div>
@@ -215,22 +216,16 @@ export default function ScannerModal({
             )}
 
             {scannerMode === 'external' && (
-              <div className="flex flex-col items-center py-8 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center mb-4">
-                  <Keyboard className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <p className="font-medium">Ready for scanner input</p>
-                <p className="text-sm text-slate-500 mt-1">Point your barcode scanner at the product</p>
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-slate-500">Listening...</span>
-                </div>
+              <div className="flex flex-col items-center py-12 text-center">
+                <Keyboard className="w-16 h-16 text-indigo-600 mb-4" />
+                <p className="font-semibold text-lg">Ready for external scanner</p>
+                <p className="text-sm text-slate-500 mt-2">Connect your scanner and scan</p>
               </div>
             )}
 
             {(error || scanError) && (
-              <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                <AlertCircle className="w-4 h-4 text-red-600" />
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-red-600" />
                 <p className="text-sm text-red-700 dark:text-red-300">{error || scanError}</p>
               </div>
             )}
@@ -245,11 +240,11 @@ export default function ScannerModal({
                   onChange={e => setManualInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && onManualSubmit()}
                   placeholder="Enter IMEI or barcode"
-                  className="flex-1 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
                 />
                 <button
                   onClick={onManualSubmit}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
                 >
                   Add
                 </button>
@@ -260,7 +255,7 @@ export default function ScannerModal({
           <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
             <button
               onClick={onClose}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"
+              className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"
             >
               Done Scanning
             </button>

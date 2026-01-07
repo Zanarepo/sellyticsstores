@@ -1,10 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-
-const playSuccessSound = () => {
-  new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3")
-    .play()
-    .catch(() => {});
-};
+import { toast } from 'react-hot-toast';
 
 export default function useScanner({ onScanItem, onScanComplete }) {
   const [showScanner, setShowScanner] = useState(false);
@@ -14,7 +9,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
   const [error, setError] = useState(null);
   const [manualInput, setManualInput] = useState('');
 
-  const [scannedItems, setScannedItems] = useState([]);
+  const [, setScannedItems] = useState([]);
   const [scanningFor, setScanningFor] = useState('standard');
 
   const lastScanRef = useRef('');
@@ -32,12 +27,11 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     if (!code || code === lastScanRef.current) return;
 
     lastScanRef.current = code;
-    setTimeout(() => { lastScanRef.current = ''; }, 500);
-    playSuccessSound();
+    setTimeout(() => { lastScanRef.current = ''; }, 800);
 
     setScannedItems(prev => {
       if (scanningFor === 'unique' && prev.some(i => i.code === code)) {
-        setError('Duplicate item scanned');
+        toast.error('Duplicate IMEI detected', { icon: '⚠️' });
         return prev;
       }
 
@@ -47,9 +41,10 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
       if (scanningFor === 'standard') {
         onScanComplete?.([newItem]);
-        if (!continuousScan) setTimeout(closeScanner, 100);
+        if (!continuousScan) setTimeout(closeScanner, 150);
         return [newItem];
       }
+
       return [...prev, newItem];
     });
   }, [scanningFor, onScanItem, onScanComplete, continuousScan, closeScanner]);
@@ -67,14 +62,13 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
   const handleManualSubmit = useCallback(() => {
     if (!manualInput.trim()) {
-      setError('Please enter a barcode or ID');
+      toast.error('Please enter a code');
       return;
     }
     processScannedCode(manualInput.trim());
     setManualInput('');
   }, [manualInput, processScannedCode]);
 
-  // External scanner listener
   useEffect(() => {
     if (!showScanner || scannerMode !== 'external') return;
 
@@ -103,19 +97,6 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     };
   }, [showScanner, scannerMode, processScannedCode]);
 
-  const removeScannedItem = useCallback((id) => {
-    setScannedItems(prev => prev.filter(item => item.id !== id));
-  }, []);
-
-  const updateScannedItemSize = useCallback((id, size) => {
-    setScannedItems(prev => prev.map(item => item.id === id ? { ...item, size } : item));
-  }, []);
-
-  const completeScanning = useCallback(() => {
-    onScanComplete?.(scannedItems);
-    closeScanner();
-  }, [scannedItems, onScanComplete, closeScanner]);
-
   return {
     showScanner,
     scannerMode,
@@ -126,11 +107,6 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     error,
     manualInput,
     setManualInput,
-    scannedItems,
-    scanningFor,
-    removeScannedItem,
-    updateScannedItemSize,
-    completeScanning,
     handleManualSubmit,
     openScanner,
     closeScanner,

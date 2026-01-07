@@ -112,15 +112,39 @@ export default function ScannerModal({
           cameraId = cameras[0].id;
         }
 
-        // Camera configuration with enhanced settings for Android/iOS
+        // Calculate focused scanning area (smaller, more precise for mobile)
+        // Use function-based qrbox that adapts to viewport but stays focused
+        const getQrBoxSize = () => {
+          const viewport = Math.min(window.innerWidth, window.innerHeight);
+          // Use smaller focused area: 60-65% of smaller viewport dimension
+          // This creates a tight, focused scanning area
+          const size = Math.floor(viewport * 0.60);
+          // Clamp between 180-250 for optimal mobile scanning
+          return Math.max(180, Math.min(250, size));
+        };
+
+        const qrBoxSize = getQrBoxSize();
+
+        // Camera configuration with enhanced settings for Android/iOS - TIGHT FOCUS
         const config = {
           fps: 30,
-          qrbox: { width: 280, height: 280 },
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // Return a smaller, more focused scanning box
+            const size = qrBoxSize;
+            const minEdgePercentage = 0.65; // 65% of viewfinder width
+            const minEdgeSize = Math.floor(viewfinderWidth * minEdgePercentage);
+            const finalSize = Math.min(size, minEdgeSize);
+            return {
+              width: finalSize,
+              height: finalSize
+            };
+          },
           aspectRatio: 1.0,
           disableFlip: false,
           videoConstraints: {
             facingMode: "environment",
             focusMode: "continuous",
+            // Enhanced mobile focus settings
             advanced: [
               { focusMode: "continuous" },
               { exposureMode: "continuous" },
@@ -182,21 +206,35 @@ export default function ScannerModal({
             if (track && track.getCapabilities) {
               const capabilities = track.getCapabilities();
               
-              // Apply advanced settings if supported
+              // Apply advanced settings for mobile focus optimization
+              const advancedConstraints = [];
+              
+              // Continuous autofocus for mobile
               if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                track.applyConstraints({
-                  advanced: [{ focusMode: 'continuous' }]
-                }).catch(() => {});
+                advancedConstraints.push({ focusMode: 'continuous' });
               }
               
-              // Set preferred resolution for better clarity
+              // Optimize resolution for mobile - use native or high quality
               if (capabilities.width && capabilities.height) {
+                // Use higher resolution for better barcode clarity on mobile
                 const preferredWidth = Math.min(1920, capabilities.width.max || 1920);
                 const preferredHeight = Math.min(1080, capabilities.height.max || 1080);
                 
-                track.applyConstraints({
+                advancedConstraints.push({
                   width: preferredWidth,
-                  height: preferredHeight,
+                  height: preferredHeight
+                });
+              }
+              
+              // Exposure and white balance for better barcode capture
+              if (capabilities.exposureMode && capabilities.exposureMode.includes('continuous')) {
+                advancedConstraints.push({ exposureMode: 'continuous' });
+              }
+              
+              // Apply all constraints together
+              if (advancedConstraints.length > 0) {
+                track.applyConstraints({
+                  advanced: advancedConstraints
                 }).catch(() => {});
               }
             }
@@ -317,16 +355,25 @@ export default function ScannerModal({
                 />
 
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-72 h-72 border-3 border-indigo-500 rounded-xl relative">
-                    <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500" />
-                    <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-500" />
-                    <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-500" />
-                    <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-indigo-500" />
+                  {/* Smaller, more focused scanning frame for mobile */}
+                  <div 
+                    className="border-3 border-indigo-500 rounded-xl relative"
+                    style={{
+                      width: '60%',
+                      maxWidth: '250px',
+                      minWidth: '180px',
+                      aspectRatio: '1 / 1'
+                    }}
+                  >
+                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-3 border-l-3 border-indigo-500" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-3 border-r-3 border-indigo-500" />
+                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-3 border-l-3 border-indigo-500" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-3 border-r-3 border-indigo-500" />
                     {isScanning && (
                       <motion.div
-                        className="absolute inset-x-4 h-1 bg-indigo-400 rounded-full shadow-lg"
-                        animate={{ top: ['20%', '80%', '20%'] }}
-                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-x-2 h-0.5 bg-indigo-400 rounded-full shadow-lg"
+                        animate={{ top: ['15%', '85%', '15%'] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                       />
                     )}
                   </div>

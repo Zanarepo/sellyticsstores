@@ -24,6 +24,14 @@ export default function ScannerModal({
   const inputRef = useRef(null);
   const scannerRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
+  const audioRef = useRef(null);
+  const isProcessingRef = useRef(false);
+  const processScannedCodeRef = useRef(processScannedCode);
+
+  // Keep the ref updated with the latest callback
+  useEffect(() => {
+    processScannedCodeRef.current = processScannedCode;
+  }, [processScannedCode]);
 
 
   useEffect(() => {
@@ -41,53 +49,98 @@ export default function ScannerModal({
     } catch (_) {}
     scannerRef.current = null;
     setIsScanning(false);
+    isProcessingRef.current = false;
+  };
+
+  // Initialize audio once
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3");
+      audioRef.current.volume = 0.5;
+      audioRef.current.preload = 'auto';
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playScanSound = () => {
+    if (audioRef.current && !isProcessingRef.current) {
+      try {
+        audioRef.current.currentTime = 0; // Reset to start
+        audioRef.current.play().catch(() => {
+          // Ignore audio play errors (e.g., autoplay restrictions)
+        });
+      } catch (err) {
+        // Ignore errors
+      }
+    }
   };
 
   // Camera scanning — now triggers onScanItem directly
   useEffect(() => {
-  if (!show || scannerMode !== 'camera') {
-    stopScanner();
-    return;
-  }
-
-  const startScanning = async () => {
-    try {
-      const scanner = new Html5Qrcode("scanner-container");
-      scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 12,
-          qrbox: { width: 350, height: 140 },
-          aspectRatio: 1.777778,
-        },
-        (decodedText) => {
-          const code = decodedText.trim();
-          if (!code) return;
-
-          // Use the EXACT SAME logic as external/manual
-          processScannedCode(code);
-
-          // Optional: play sound
-          new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3")
-            .play()
-            .catch(() => {});
-        },
-        () => {}
-      );
-
-      setIsScanning(true);
-    } catch (err) {
-      toast.error('Camera access denied');
-      setIsScanning(false);
+    if (!show || scannerMode !== 'camera') {
+      stopScanner();
+      return;
     }
-  };
 
-  startScanning();
+    // Prevent multiple scanner instances
+    if (scannerRef.current) {
+      return;
+    }
 
-  return () => stopScanner();
-}, [show, scannerMode, processScannedCode]);
+    const startScanning = async () => {
+      try {
+        const scanner = new Html5Qrcode("scanner-container");
+        scannerRef.current = scanner;
+
+        await scanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10, // Reduced FPS to prevent too rapid scanning
+            qrbox: { width: 350, height: 140 },
+            aspectRatio: 1.777778,
+            disableFlip: false,
+          },
+          (decodedText) => {
+            const code = decodedText.trim();
+            if (!code || isProcessingRef.current) return;
+
+            // Prevent rapid duplicate processing
+            isProcessingRef.current = true;
+
+            // Use the EXACT SAME logic as external/manual (via ref to get latest)
+            processScannedCodeRef.current(code);
+
+            // Play sound (single instance, controlled)
+            playScanSound();
+
+            // Reset processing flag after a delay to allow next scan
+            setTimeout(() => {
+              isProcessingRef.current = false;
+            }, 500);
+          },
+          () => {}
+        );
+
+        setIsScanning(true);
+      } catch (err) {
+        console.error('Scanner error:', err);
+        toast.error('Camera access denied or error starting scanner');
+        setIsScanning(false);
+        scannerRef.current = null;
+      }
+    };
+
+    startScanning();
+
+    return () => {
+      stopScanner();
+    };
+  }, [show, scannerMode]); // Removed processScannedCode from dependencies to prevent restart
 
 
 

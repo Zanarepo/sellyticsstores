@@ -13,6 +13,8 @@ export default function useScanner({ onScanItem, onScanComplete }) {
   const [scanningFor, setScanningFor] = useState('standard');
 
   const lastScanRef = useRef('');
+  const scanTimeoutRef = useRef(null);
+  const isProcessingRef = useRef(false);
 
   const closeScanner = useCallback(() => {
     setShowScanner(false);
@@ -20,20 +22,59 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     setError(null);
     setScannedItems([]);
     setScanningFor('standard');
+    lastScanRef.current = '';
+    isProcessingRef.current = false;
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
   }, []);
 
   // SAME LOGIC FOR ALL SCAN METHODS (external, manual, AND camera)
   const processScannedCode = useCallback((barcode) => {
     const code = barcode.trim();
-    if (!code || code === lastScanRef.current) return;
+    if (!code) return;
 
+    // Prevent duplicate scans with improved debouncing
+    if (code === lastScanRef.current || isProcessingRef.current) {
+      return;
+    }
+
+    // Mark as processing to prevent rapid duplicate scans
+    isProcessingRef.current = true;
     lastScanRef.current = code;
-    setTimeout(() => { lastScanRef.current = ''; }, 800);
+
+    // Clear any existing timeout
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
+
+    // Reset the last scan reference after a longer delay (2 seconds for camera scans)
+    scanTimeoutRef.current = setTimeout(() => { 
+      lastScanRef.current = '';
+      isProcessingRef.current = false;
+      scanTimeoutRef.current = null;
+    }, 2000);
 
     setScannedItems(prev => {
       // Duplicate guard for unique mode
       if (scanningFor === 'unique' && prev.some(i => i.code === code)) {
-        toast.error('Duplicate IMEI detected', { icon: '⚠️' });
+        // Non-intrusive duplicate notification
+        toast('Duplicate detected', { 
+          icon: '⚠️',
+          duration: 1200,
+          position: 'top-right',
+          style: {
+            background: '#FEF3C7',
+            color: '#92400E',
+            padding: '6px 10px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 500,
+            maxWidth: '200px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          },
+        });
         return prev;
       }
 
@@ -41,6 +82,30 @@ export default function useScanner({ onScanItem, onScanComplete }) {
 
       // Always trigger onScanItem (this updates the form UI)
       onScanItem?.(newItem);
+
+      // Success notification for successful scan (non-intrusive)
+      const successMessage = scanningFor === 'unique' 
+        ? `✓ ${code.substring(0, 10)}...` 
+        : `✓ Scanned`;
+      
+      toast.success(successMessage, {
+        duration: 1200,
+        position: 'top-right',
+        style: {
+          background: '#D1FAE5',
+          color: '#065F46',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontWeight: 500,
+          maxWidth: '180px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        },
+        iconTheme: {
+          primary: '#10B981',
+          secondary: '#FFFFFF',
+        },
+      });
 
       // For non-unique: auto-complete after first scan
       if (scanningFor === 'standard') {
@@ -54,6 +119,11 @@ export default function useScanner({ onScanItem, onScanComplete }) {
       // Unique mode: accumulate
       return [...prev, newItem];
     });
+
+    // Reset processing flag after a short delay to allow next scan
+    setTimeout(() => {
+      isProcessingRef.current = false;
+    }, 300);
   }, [scanningFor, onScanItem, onScanComplete, continuousScan, closeScanner]);
 
   const openScanner = useCallback((type = 'standard', mode = 'external') => {

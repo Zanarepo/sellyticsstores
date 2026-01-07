@@ -125,7 +125,7 @@ export default function ScannerModal({
 
         // Camera configuration with enhanced settings for Android/iOS - SQUARE FOCUS
         const config = {
-          fps: 50,
+          fps: 30,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             // Return a square scanning box
             const size = qrBoxSize;
@@ -377,37 +377,68 @@ export default function ScannerModal({
               </div>
             )}
 
-            {/* Manual Entry */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wider text-slate-500">Manual Entry</label>
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={manualInput}
-                  onChange={e => setManualInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && onManualSubmit()}
-                  placeholder="Enter IMEI or barcode"
-                  className="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={onManualSubmit}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          </div>
+           {/* Manual Entry */}
+<div className="space-y-2 w-full">
+  <label className="text-xs font-medium uppercase tracking-wider text-slate-500">
+    Manual Entryss
+  </label>
 
-          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
-            <button
-              onClick={onClose}
-              className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"
-            >
-              Done
-            </button>
-          </div>
+  <div className="flex flex-col sm:flex-row gap-2 w-full">
+    <input
+      ref={inputRef}
+      type="text"
+      value={manualInput}
+      onChange={(e) => setManualInput(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && onManualSubmit()}
+      placeholder="Enter IMEI or barcode"
+      className="
+        w-full min-w-0
+        px-4 py-3
+        border border-slate-200 dark:border-slate-700
+        rounded-lg
+        bg-white dark:bg-slate-800
+        focus:ring-2 focus:ring-indigo-500
+        text-sm
+      "
+    />
+
+    <button
+      onClick={onManualSubmit}
+      className="
+        w-full sm:w-auto
+        px-6 py-3
+        bg-indigo-600 hover:bg-indigo-700
+        text-white
+        rounded-lg
+        font-medium
+        text-sm
+        whitespace-nowrap
+      "
+    >
+      Adds
+    </button>
+  </div>
+</div>
+
+{/* Footer */}
+<div className="p-4 sm:p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+  <button
+    onClick={onClose}
+    className="
+      w-full
+      py-3
+      border border-slate-200 dark:border-slate-700
+      rounded-lg
+      hover:bg-slate-100 dark:hover:bg-slate-700
+      font-medium
+      text-sm
+    "
+  >
+    Done
+  </button>
+</div>
+</div>
+
         </motion.div>
       </motion.div>
     </AnimatePresence>

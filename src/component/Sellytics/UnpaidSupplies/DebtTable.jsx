@@ -37,7 +37,7 @@ export default function DebtCard({
 
   const hasAnyAction = canView || canEdit || canDelete;
 
-  // Safe defaults
+  // Safe defaultsa
   const owed = debt.owed ?? 0;
   const deposited = debt.deposited ?? 0;
   const balance = owed - deposited;

@@ -125,7 +125,7 @@ export default function ScannerModal({
 
         // Camera configuration with enhanced settings for Android/iOS - SQUARE FOCUS
         const config = {
-          fps: 50,
+          fps: 30,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             // Return a square scanning box
             const size = qrBoxSize;

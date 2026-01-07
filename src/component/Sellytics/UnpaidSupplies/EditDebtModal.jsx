@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FaPlus, FaSave } from 'react-icons/fa';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 import useDebt from './useDebt';
 import ScannerModal from './ScannerModal';
@@ -33,6 +33,9 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
 
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
+  const formRef = useRef(null);
 
   const {
     debtEntries,
@@ -54,20 +57,10 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
     onSuccess,
   });
 
-  // Scanner ref
-  const scannerIndicesRef = useRef({ entryIndex: null, deviceIndex: null });
-
-  const { showScanner, openScanner, closeScanner } = useScanner({
-    onScan: (code) => {
-      const { entryIndex, deviceIndex } = scannerIndicesRef.current;
-      if (entryIndex !== null) handleScanSuccess(code, entryIndex, deviceIndex);
-    },
+  // Scanner hook - matching Sales pattern
+  const scanner = useScanner({
+    onScanSuccess: handleScanSuccess
   });
-
-  const openScannerWithIndex = ({ entryIndex, deviceIndex }) => {
-    scannerIndicesRef.current = { entryIndex, deviceIndex };
-    openScanner();
-  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -86,6 +79,99 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
     };
     loadData();
   }, [storeId]);
+
+  // Validation function
+  const validateAllEntries = () => {
+    const errors = [];
+    
+    debtEntries.forEach((entry, index) => {
+      const entryErrors = [];
+      
+      // Validate customer
+      if (!entry.customer_id || entry.customer_id === '') {
+        entryErrors.push('Customer is required');
+      }
+      
+      // Validate product
+      if (!entry.dynamic_product_id || entry.dynamic_product_id === '') {
+        entryErrors.push('Product is required');
+      }
+      
+      // Validate quantity
+      if (!entry.qty || entry.qty < 1) {
+        entryErrors.push('Quantity must be at least 1');
+      }
+      
+      // Validate owed
+      if (entry.owed === undefined || entry.owed === null || entry.owed === '' || entry.owed < 0) {
+        entryErrors.push('Owed amount is required');
+      }
+      
+      // Validate date
+      if (!entry.date) {
+        entryErrors.push('Date is required');
+      }
+      
+      // Validate device IDs for unique products
+      if (entry.isUniqueProduct && entry.dynamic_product_id) {
+        if (!entry.deviceIds || entry.deviceIds.length === 0 || entry.deviceIds.every(id => !id)) {
+          entryErrors.push('At least one device ID/IMEI is required for unique products');
+        }
+      }
+      
+      if (entryErrors.length > 0) {
+        errors.push({
+          entryIndex: index,
+          entryNumber: index + 1,
+          errors: entryErrors
+        });
+      }
+    });
+    
+    return errors;
+  };
+
+  // Handle form submission with validation
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Run validation
+    const errors = validateAllEntries();
+    
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidationAlert(true);
+      
+      // Show notification
+      addNotification({
+        type: 'error',
+        message: `Please fill in all required fields. ${errors.length} ${errors.length === 1 ? 'entry has' : 'entries have'} validation errors.`
+      });
+      
+      // Scroll to top to show validation alert
+      if (formRef.current) {
+        formRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      
+      return;
+    }
+    
+    // Clear validation errors and proceed
+    setValidationErrors([]);
+    setShowValidationAlert(false);
+    saveDebts();
+  };
+
+  // Auto-hide validation alert after 10 seconds
+  useEffect(() => {
+    if (showValidationAlert) {
+      const timer = setTimeout(() => {
+        setShowValidationAlert(false);
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showValidationAlert]);
 
   return (
     <>
@@ -130,12 +216,64 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
 
           {/* Form */}
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              saveDebts();
-            }}
+            onSubmit={handleSubmit}
+            ref={formRef}
             className="flex-1 overflow-y-auto p-5 space-y-6"
           >
+            {/* Validation Alert */}
+            {showValidationAlert && validationErrors.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 dark:border-red-800 rounded-xl p-4 mb-4"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-red-800 dark:text-red-300 mb-2">
+                      ⚠️ Validation Errors
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                      Please fix the following errors before saving:
+                    </p>
+                    
+                    <div className="space-y-3">
+                      {validationErrors.map((error, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-red-200 dark:border-red-700"
+                        >
+                          <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">
+                            Entry {error.entryNumber}:
+                          </h4>
+                          <ul className="space-y-1">
+                            {error.errors.map((err, errIdx) => (
+                              <li
+                                key={errIdx}
+                                className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                {err}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowValidationAlert(false)}
+                      className="mt-3 text-sm text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Debt Entries */}
             {debtEntries.map((entry, index) => (
               <DebtEntry
                 key={index}
@@ -150,9 +288,10 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
                 onRemoveDevice={(entryIdx, deviceIdx) =>
                   removeDeviceRow(entryIdx, deviceIdx)
                 }
-                onOpenScanner={(deviceIndex) =>
-                  openScannerWithIndex({ entryIndex: index, deviceIndex })
-                }
+                onOpenScanner={(entryIdx, deviceIdx) => {
+                  // entryIdx is the entry index (from DebtEntry), deviceIdx is device index (null for product scan)
+                  scanner.openScanner('camera', entryIdx !== undefined ? entryIdx : index, deviceIdx);
+                }}
               />
             ))}
 
@@ -196,16 +335,19 @@ export default function EditDebtModal({ initialData, onClose, onSuccess }) {
         </motion.div>
       </motion.div>
 
-      {showScanner && (
-        <ScannerModal
-          isOpen={showScanner}
-          onScan={(code) => {
-            const { entryIndex, deviceIndex } = scannerIndicesRef.current;
-            handleScanSuccess(code, entryIndex, deviceIndex);
-          }}
-          onClose={closeScanner}
-        />
-      )}
+      {/* Scanner Modal */}
+      <ScannerModal
+        show={scanner.showScanner}
+        scannerMode={scanner.scannerMode}
+        setScannerMode={scanner.setScannerMode}
+        continuousScan={scanner.continuousScan}
+        setContinuousScan={scanner.setContinuousScan}
+        manualInput={scanner.manualInput}
+        setManualInput={scanner.setManualInput}
+        onManualSubmit={scanner.handleManualSubmit}
+        processScannedCode={scanner.processScannedCode}
+        onClose={scanner.closeScanner}
+      />
     </>
   );
 }

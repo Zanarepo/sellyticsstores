@@ -1,8 +1,103 @@
 import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../../../supabaseClient';
 import toast from 'react-hot-toast'
-import { hasDuplicateDeviceId } from '../../../utils/deviceValidation';
 import { defaultEntry } from './EditDebtModal';
+
+/**
+ * Check if a device ID already exists (already sold or in debts)
+ */
+const checkDeviceIdExists = async (deviceId, storeId, excludeDebtId = null) => {
+  try {
+    const cleanId = deviceId.trim().toLowerCase();
+    
+    // Check 1: Already sold in dynamic_sales
+    const { data: salesData, error: salesError } = await supabase
+      .from('dynamic_sales')
+      .select('id, customer_name, device_id, dynamic_product_imeis')
+      .eq('store_id', storeId)
+      .eq('status', 'sold');
+    
+    if (salesError) {
+      console.error('Error checking sales:', salesError);
+    } else if (salesData) {
+      const soldItem = salesData.find(sale => {
+        // Check device_id field
+        if (sale.device_id?.toLowerCase() === cleanId) return true;
+        
+        // Check dynamic_product_imeis field (comma-separated)
+        const imeis = (sale.dynamic_product_imeis || '').split(',').map(id => id.trim().toLowerCase());
+        return imeis.includes(cleanId);
+      });
+      
+      if (soldItem) {
+        return { 
+          found: true, 
+          type: 'sold',
+          customer: soldItem.customer_name 
+        };
+      }
+    }
+    
+    // Check 2: Already in debts table
+    let debtQuery = supabase
+      .from('debts')
+      .select('id, customer_name, product_name, device_id')
+      .eq('store_id', storeId);
+    
+    if (excludeDebtId) {
+      debtQuery = debtQuery.neq('id', excludeDebtId);
+    }
+    
+    const { data: debtsData, error: debtsError } = await debtQuery;
+    
+    if (debtsError) {
+      console.error('Error checking debts:', debtsError);
+    } else if (debtsData) {
+      const debtItem = debtsData.find(debt => {
+        const ids = (debt.device_id || '').split(',').map(id => id.trim().toLowerCase());
+        return ids.includes(cleanId);
+      });
+      
+      if (debtItem) {
+        return { 
+          found: true, 
+          type: 'debt',
+          customer: debtItem.customer_name 
+        };
+      }
+    }
+    
+    return { found: false };
+  } catch (err) {
+    console.error('Error in checkDeviceIdExists:', err);
+    return { found: false };
+  }
+};
+
+/**
+ * Validate if scanned IMEI belongs to the selected product
+ */
+const validateImeiForProduct = (scannedImei, product) => {
+  if (!product?.dynamic_product_imeis) {
+    return { valid: false, reason: 'Product has no IMEIs' };
+  }
+  
+  const productImeis = product.dynamic_product_imeis
+    .split(',')
+    .map(imei => imei.trim().toLowerCase())
+    .filter(Boolean);
+  
+  const scannedLower = scannedImei.trim().toLowerCase();
+  
+  if (!productImeis.includes(scannedLower)) {
+    return { 
+      valid: false, 
+      reason: `IMEI not found in ${product.name || 'this product'}` 
+    };
+  }
+  
+  return { valid: true };
+};
 
 export default function useDebtEntryLogic({
   initialData,
@@ -13,7 +108,10 @@ export default function useDebtEntryLogic({
   addNotification,
   onSuccess,
 }) {
-  const [debtEntries, setDebtEntries] = useState([defaultEntry]);
+  const [debtEntries, setDebtEntries] = useState([{
+    ...defaultEntry,
+    isUniqueProduct: false, // Default to false until product is selected
+  }]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load initial data
@@ -129,7 +227,10 @@ export default function useDebtEntryLogic({
   };
 
   const addDebtEntry = () => {
-    if (!isEdit) setDebtEntries(prev => [...prev, defaultEntry]);
+    if (!isEdit) setDebtEntries(prev => [...prev, {
+      ...defaultEntry,
+      isUniqueProduct: false, // Default to false
+    }]);
   };
 
   const removeDebtEntry = index => {
@@ -165,89 +266,394 @@ export default function useDebtEntryLogic({
       return updated;
     });
   };
-const handleScanSuccess = (code, entryIndex, deviceIndex) => {
-  if (!code || typeof code !== 'string') return false;
-  const cleanCode = code.trim();
-  if (!cleanCode) return false;
 
-  // Duplicate check
-  if (hasDuplicateDeviceId(debtEntries, cleanCode, entryIndex)) {
-    toast(`Duplicate Product ID: ${cleanCode} already added`);
-    return false;
-  }
+  // Find product by barcode/IMEI
+  const findProductByBarcode = async (barcode) => {
+    try {
+      const { data, error } = await supabase
+        .from('dynamic_product')
+        .select('id, name, selling_price, dynamic_product_imeis, device_size')
+        .eq('store_id', storeId)
+        .ilike('dynamic_product_imeis', `%${barcode}%`)
+        .limit(1)
+        .maybeSingle();
 
-  setDebtEntries(prev => {
-    const updated = [...prev];
-    const current = { ...updated[entryIndex] };
+      if (error) {
+        console.error('Error finding product:', error);
+        return null;
+      }
 
-    // Ensure arrays exist
-    current.deviceIds = Array.isArray(current.deviceIds) ? [...current.deviceIds] : [];
-    current.deviceSizes = Array.isArray(current.deviceSizes) ? [...current.deviceSizes] : [];
+      if (!data) {
+        // Try also searching by device_id field (some products use this)
+        const { data: altData } = await supabase
+          .from('dynamic_product')
+          .select('id, name, selling_price, device_id')
+          .eq('store_id', storeId)
+          .eq('device_id', barcode)
+          .limit(1)
+          .maybeSingle();
+        
+        return altData || null;
+      }
 
-    // **Automatically append new row instead of overwriting**
-    current.deviceIds.push(cleanCode);
-    current.deviceSizes.push(''); // empty size for new row
+      return data;
+    } catch (err) {
+      console.error('Error in findProductByBarcode:', err);
+      return null;
+    }
+  };
 
-    // Update qty and owed
-    const prod = products.find(p => p.id === parseInt(current.dynamic_product_id));
-    const price = prod ? parseFloat(prod.selling_price || 0) : 0;
-    current.qty = current.deviceIds.filter(Boolean).length;
-    current.owed = (price * current.qty).toFixed(2);
+  const handleScanSuccess = async (code, entryIndex, deviceIndex) => {
+    if (!code || typeof code !== 'string') {
+      return { success: false, error: 'Invalid barcode' };
+    }
+    const cleanCode = code.trim();
+    if (!cleanCode) {
+      return { success: false, error: 'Empty barcode' };
+    }
 
-    updated[entryIndex] = current;
-    return updated;
-  });
+    // CASE 1: No entry specified - find product and create new entry
+    if (entryIndex === null || entryIndex === undefined) {
+      const product = await findProductByBarcode(cleanCode);
+      
+      if (!product) {
+        return { success: false, error: `Product not found for: ${cleanCode}` };
+      }
 
-  toast.success(`Added: ${cleanCode}`);
-  return true;
-};
+      // Check if already sold or in debts
+      const existingCheck = await checkDeviceIdExists(cleanCode, storeId, isEdit ? initialData?.id : null);
+      if (existingCheck.found) {
+        if (existingCheck.type === 'sold') {
+          return { 
+            success: false, 
+            error: `Already sold to ${existingCheck.customer || 'a customer'}` 
+          };
+        } else {
+          return { 
+            success: false, 
+            error: `Already in debt for ${existingCheck.customer || 'a customer'}` 
+          };
+        }
+      }
 
+      const isUnique = !!product.dynamic_product_imeis?.trim();
+      const price = parseFloat(product.selling_price || 0);
+      
+      // Get device size
+      let deviceSize = '';
+      if (isUnique && product.dynamic_product_imeis) {
+        const deviceImeis = product.dynamic_product_imeis.split(',').map(i => i.trim());
+        const deviceSizes = (product.device_size || '').split(',').map(s => s.trim());
+        const deviceIdx = deviceImeis.findIndex(id => id.toLowerCase() === cleanCode.toLowerCase());
+        deviceSize = deviceIdx >= 0 ? (deviceSizes[deviceIdx] || '') : '';
+      }
+      
+      const newEntry = {
+        ...defaultEntry,
+        dynamic_product_id: product.id.toString(),
+        product_name: product.name,
+        isUniqueProduct: isUnique,
+        deviceIds: isUnique ? [cleanCode] : [''],
+        deviceSizes: isUnique ? [deviceSize] : [''],
+        qty: isUnique ? 1 : 1,
+        owed: price.toFixed(2),
+      };
 
+      setDebtEntries(prev => [...prev, newEntry]);
+      return { 
+        success: true, 
+        productName: product.name
+      };
+    }
 
+    // CASE 2: Entry specified - add device ID to existing entry
+    const currentEntry = debtEntries[entryIndex];
+    if (!currentEntry) {
+      return { success: false, error: 'Entry not found' };
+    }
 
+    // SUB-CASE 2A: No product selected yet - find product by scanned IMEI
+    if (!currentEntry.dynamic_product_id) {
+      const product = await findProductByBarcode(cleanCode);
+      
+      if (!product) {
+        return { success: false, error: `Product not found for: ${cleanCode}` };
+      }
 
+      // Check if already sold or in debts
+      const existingCheck = await checkDeviceIdExists(cleanCode, storeId, isEdit ? initialData?.id : null);
+      if (existingCheck.found) {
+        if (existingCheck.type === 'sold') {
+          return { 
+            success: false, 
+            error: `Already sold to ${existingCheck.customer || 'a customer'}` 
+          };
+        } else {
+          return { 
+            success: false, 
+            error: `Already in debt for ${existingCheck.customer || 'a customer'}` 
+          };
+        }
+      }
+
+      const isUnique = !!product.dynamic_product_imeis?.trim();
+      const price = parseFloat(product.selling_price || 0);
+      
+      // Get device size
+      let deviceSize = '';
+      if (isUnique && product.dynamic_product_imeis) {
+        const deviceImeis = product.dynamic_product_imeis.split(',').map(i => i.trim());
+        const deviceSizes = (product.device_size || '').split(',').map(s => s.trim());
+        const deviceIdx = deviceImeis.findIndex(id => id.toLowerCase() === cleanCode.toLowerCase());
+        deviceSize = deviceIdx >= 0 ? (deviceSizes[deviceIdx] || '') : '';
+      }
+
+      // Update entry with product and device ID
+      setDebtEntries(prev => {
+        const updated = [...prev];
+        updated[entryIndex] = {
+          ...updated[entryIndex],
+          dynamic_product_id: product.id.toString(),
+          product_name: product.name,
+          isUniqueProduct: isUnique,
+          deviceIds: isUnique ? [cleanCode] : [''],
+          deviceSizes: isUnique ? [deviceSize] : [''],
+          qty: isUnique ? 1 : 1,
+          owed: price.toFixed(2),
+        };
+        return updated;
+      });
+
+      return { 
+        success: true, 
+        productName: product.name
+      };
+    }
+
+    // SUB-CASE 2B: Product already selected - add device ID to existing product
+    const product = products.find(p => p.id === parseInt(currentEntry.dynamic_product_id));
+    if (!product) {
+      return { success: false, error: 'Product not found' };
+    }
+
+    // Check if this is a unique product (has IMEIs)
+    if (!product.dynamic_product_imeis?.trim()) {
+      return { 
+        success: false, 
+        error: 'This product does not use device IDs' 
+      };
+    }
+
+    // VALIDATE: Check if scanned IMEI belongs to this product
+    const validation = validateImeiForProduct(cleanCode, product);
+    if (!validation.valid) {
+      return { 
+        success: false, 
+        error: validation.reason 
+      };
+    }
+
+    // Check for duplicates within current entry
+    const existingIds = Array.isArray(currentEntry.deviceIds) 
+      ? currentEntry.deviceIds.map(id => id.toLowerCase()) 
+      : [];
+    
+    if (existingIds.includes(cleanCode.toLowerCase())) {
+      return { 
+        success: false, 
+        error: `Device ID "${cleanCode}" already added to this entry` 
+      };
+    }
+
+    // Check if already sold (in dynamic_sales) or in debts
+    const existingCheck = await checkDeviceIdExists(cleanCode, storeId, isEdit ? initialData?.id : null);
+    if (existingCheck.found) {
+      if (existingCheck.type === 'sold') {
+        return { 
+          success: false, 
+          error: `Already sold to ${existingCheck.customer || 'a customer'}` 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: `Already in debt for ${existingCheck.customer || 'a customer'}` 
+        };
+      }
+    }
+
+    // Get device size from product
+    let deviceSize = '';
+    const deviceImeis = product.dynamic_product_imeis.split(',').map(i => i.trim());
+    const deviceSizes = (product.device_size || '').split(',').map(s => s.trim());
+    const deviceIdx = deviceImeis.findIndex(id => id.toLowerCase() === cleanCode.toLowerCase());
+    deviceSize = deviceIdx >= 0 ? (deviceSizes[deviceIdx] || '') : '';
+
+    // All validations passed - add the device ID
+    setDebtEntries(prev => {
+      const updated = [...prev];
+      const current = { ...updated[entryIndex] };
+
+      // Ensure arrays exist
+      current.deviceIds = Array.isArray(current.deviceIds) ? [...current.deviceIds] : [];
+      current.deviceSizes = Array.isArray(current.deviceSizes) ? [...current.deviceSizes] : [];
+
+      // Add device ID (or update existing row if deviceIndex provided)
+      if (deviceIndex !== null && deviceIndex !== undefined && deviceIndex < current.deviceIds.length) {
+        current.deviceIds[deviceIndex] = cleanCode;
+        if (deviceSize) {
+          current.deviceSizes[deviceIndex] = deviceSize;
+        }
+      } else {
+        current.deviceIds.push(cleanCode);
+        current.deviceSizes.push(deviceSize);
+      }
+
+      // Update qty and owed
+      const price = parseFloat(product.selling_price || 0);
+      current.qty = current.deviceIds.filter(Boolean).length || 1;
+      current.owed = (price * current.qty).toFixed(2);
+
+      updated[entryIndex] = current;
+      return updated;
+    });
+
+    return { 
+      success: true, 
+      productName: product.name
+    };
+  };
 
   const saveDebts = async () => {
     if (isLoading) return;
     setIsLoading(true);
 
     let successCount = 0;
+    let errorCount = 0;
 
-    for (const entry of calculatedDebts) {
-      if (!entry.customer_id || !entry.dynamic_product_id || !entry.owed || (entry.isUniqueProduct && !entry.deviceIds.some(Boolean))) {
-        addNotification('Incomplete entry skipped.', 'error');
-        continue;
+    try {
+      for (const entry of calculatedDebts) {
+        // Validation checks
+        if (!entry.customer_id) {
+          toast.error('Please select a customer', {
+            duration: 3000,
+            position: 'top-right',
+          });
+          errorCount++;
+          continue;
+        }
+
+        if (!entry.dynamic_product_id) {
+          toast.error('Please select a product', {
+            duration: 3000,
+            position: 'top-right',
+          });
+          errorCount++;
+          continue;
+        }
+
+        if (!entry.owed || parseFloat(entry.owed) <= 0) {
+          toast.error('Please enter a valid amount owed', {
+            duration: 3000,
+            position: 'top-right',
+          });
+          errorCount++;
+          continue;
+        }
+
+        // For unique products, check if at least one device ID exists
+        if (entry.isUniqueProduct) {
+          const hasDeviceIds = entry.deviceIds && entry.deviceIds.filter(Boolean).length > 0;
+          if (!hasDeviceIds) {
+            toast.error('Please add at least one device ID for unique products', {
+              duration: 3000,
+              position: 'top-right',
+            });
+            errorCount++;
+            continue;
+          }
+        }
+
+        const payload = {
+          store_id: storeId,
+          customer_id: parseInt(entry.customer_id),
+          dynamic_product_id: parseInt(entry.dynamic_product_id),
+          customer_name: entry.customer_name,
+          product_name: entry.product_name,
+          supplier: entry.supplier || null,
+          device_id: entry.deviceIds ? entry.deviceIds.filter(Boolean).join(', ') : '',
+          device_sizes: entry.deviceSizes ? entry.deviceSizes.filter(Boolean).join(', ') : '',
+          qty: entry.isUniqueProduct 
+            ? (entry.deviceIds ? entry.deviceIds.filter(Boolean).length : 1)
+            : (entry.qty || 1),
+          owed: parseFloat(entry.owed),
+          deposited: parseFloat(entry.deposited || 0),
+          remaining_balance: parseFloat(entry.remaining_balance),
+          date: entry.date,
+          is_paid: parseFloat(entry.remaining_balance) <= 0,
+        };
+
+        const { error } = isEdit
+          ? await supabase.from('debts').update(payload).eq('id', initialData.id)
+          : await supabase.from('debts').insert(payload);
+
+        if (error) {
+          console.error('Save error:', error);
+          toast.error(`Failed to save: ${error.message}`, {
+            duration: 4000,
+            position: 'top-right',
+          });
+          errorCount++;
+        } else {
+          successCount++;
+        }
       }
-
-      const payload = {
-        store_id: storeId,
-        customer_id: parseInt(entry.customer_id),
-        dynamic_product_id: parseInt(entry.dynamic_product_id),
-        customer_name: entry.customer_name,
-        product_name: entry.product_name,
-        supplier: entry.supplier || null,
-        device_id: entry.deviceIds.filter(Boolean).join(', '),
-        device_sizes: entry.deviceSizes.filter(Boolean).join(', '),
-        qty: entry.deviceIds.filter(Boolean).length || entry.qty,
-        owed: parseFloat(entry.owed),
-        deposited: parseFloat(entry.deposited || 0),
-        remaining_balance: parseFloat(entry.remaining_balance),
-        date: entry.date,
-        is_paid: parseFloat(entry.remaining_balance) <= 0,
-      };
-
-      const { error } = isEdit
-        ? await supabase.from('debts').update(payload).eq('id', initialData.id)
-        : await supabase.from('debts').insert(payload);
-
-      if (!error) successCount++;
+    } catch (error) {
+      console.error('Save debts error:', error);
+      toast.error(`Error: ${error.message}`, {
+        duration: 4000,
+        position: 'top-right',
+      });
+    } finally {
+      setIsLoading(false);
     }
 
-    setIsLoading(false);
-
-    if (successCount) {
-      addNotification(`${successCount} debt(s) saved!`, 'success');
+    // Show final result toast
+    if (successCount > 0) {
+      toast.success(
+        isEdit 
+          ? `✅ Debt updated successfully!`
+          : `✅ ${successCount} debt${successCount > 1 ? 's' : ''} saved successfully!`,
+        {
+          duration: 3000,
+          position: 'top-right',
+          style: {
+            background: '#10B981',
+            color: '#FFFFFF',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: 600,
+          },
+          iconTheme: {
+            primary: '#FFFFFF',
+            secondary: '#10B981',
+          },
+        }
+      );
       onSuccess?.();
+    } else if (errorCount > 0 && successCount === 0) {
+      toast.error('❌ No debts were saved. Please check the form.', {
+        duration: 4000,
+        position: 'top-right',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          padding: '16px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          fontWeight: 600,
+        },
+      });
     }
   };
 

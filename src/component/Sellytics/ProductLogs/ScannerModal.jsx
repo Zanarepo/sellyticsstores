@@ -5,7 +5,7 @@ import {
   Scan, RefreshCw, ToggleLeft, ToggleRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { toast } from 'react-hot-toast';
 
 export default function ScannerModal({
@@ -97,15 +97,63 @@ export default function ScannerModal({
         const scanner = new Html5Qrcode("scanner-container");
         scannerRef.current = scanner;
 
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10, // Reduced FPS to prevent too rapid scanning
-            qrbox: { width: 350, height: 140 },
-            aspectRatio: 1.777778,
-            disableFlip: false,
+        // Get available cameras and use the best one
+        const cameras = await Html5Qrcode.getCameras();
+        let cameraId = null;
+        
+        // Prefer back camera (environment) on mobile devices
+        const backCamera = cameras.find(cam => 
+          cam.label.toLowerCase().includes('back') || 
+          cam.label.toLowerCase().includes('rear') ||
+          cam.label.toLowerCase().includes('environment')
+        );
+        
+        if (backCamera) {
+          cameraId = backCamera.id;
+        } else if (cameras.length > 0) {
+          cameraId = cameras[0].id;
+        }
+
+        // Camera configuration with enhanced settings
+        const config = {
+          fps: 30, // Higher FPS for better real-time scanning
+          qrbox: { width: 280, height: 280 }, // Square box for better barcode detection
+          aspectRatio: 1.0,
+          disableFlip: false,
+          videoConstraints: {
+            facingMode: "environment", // Prefer back camera
+            focusMode: "continuous", // Continuous autofocus for better clarity
+            advanced: [
+              { focusMode: "continuous" },
+              { exposureMode: "continuous" },
+              { whiteBalanceMode: "continuous" },
+            ]
           },
-          (decodedText) => {
+          // Enhanced formats for better detection (including screens)
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.ITF,
+          ],
+          // Better detection for screens and various lighting
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          },
+          // Improve barcode detection from screens
+          rememberLastUsedCamera: true,
+        };
+
+        await scanner.start(
+          cameraId || { facingMode: "environment" },
+          config,
+          (decodedText, decodedResult) => {
             const code = decodedText.trim();
             if (!code || isProcessingRef.current) return;
 
@@ -123,13 +171,60 @@ export default function ScannerModal({
               isProcessingRef.current = false;
             }, 500);
           },
-          () => {}
+          (errorMessage) => {
+            // Silently handle scanning errors - don't spam console
+            // This is expected during continuous scanning
+          }
         );
 
         setIsScanning(true);
+        
+        // Apply additional video constraints for better focus (iOS fix)
+        setTimeout(() => {
+          const videoElement = document.querySelector('#scanner-container video');
+          if (videoElement && videoElement.srcObject) {
+            const stream = videoElement.srcObject;
+            const track = stream.getVideoTracks()[0];
+            if (track && track.getCapabilities) {
+              const capabilities = track.getCapabilities();
+              
+              // Apply advanced settings if supported
+              if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                track.applyConstraints({
+                  advanced: [{ focusMode: 'continuous' }]
+                }).catch(() => {
+                  // Ignore if not supported
+                });
+              }
+              
+              // Set preferred resolution for better clarity
+              if (capabilities.width && capabilities.height) {
+                const preferredWidth = Math.min(1920, capabilities.width.max || 1920);
+                const preferredHeight = Math.min(1080, capabilities.height.max || 1080);
+                
+                track.applyConstraints({
+                  width: preferredWidth,
+                  height: preferredHeight,
+                }).catch(() => {
+                  // Ignore if not supported
+                });
+              }
+            }
+          }
+        }, 500);
+
       } catch (err) {
         console.error('Scanner error:', err);
-        toast.error('Camera access denied or error starting scanner');
+        let errorMessage = 'Camera access denied or error starting scanner';
+        
+        // More helpful error messages
+        if (err.message && err.message.includes('Permission')) {
+          errorMessage = 'Please allow camera access in your browser settings';
+        } else if (err.message && err.message.includes('NotFound')) {
+          errorMessage = 'No camera found. Please connect a camera device.';
+        }
+        
+        toast.error(errorMessage, { duration: 3000 });
         setIsScanning(false);
         scannerRef.current = null;
       }
@@ -159,11 +254,11 @@ export default function ScannerModal({
           initial={{ scale: 0.95, y: 20 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.95, y: 20 }}
-          className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col"
           onClick={e => e.stopPropagation()}
         >
           {/* Header and rest of your UI remains exactly the same */}
-          <div className="flex items-center justify-between p-5 border-b dark:border-slate-800">
+          <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
                 <Scan className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -180,7 +275,7 @@ export default function ScannerModal({
             </button>
           </div>
 
-          <div className="p-5 space-y-5">
+          <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
             {/* Continuous Toggle */}
             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2">
@@ -206,11 +301,17 @@ export default function ScannerModal({
 
             {/* Camera View */}
             {scannerMode === 'camera' && (
-              <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden">
-                <div id="scanner-container" className="w-full h-full" />
+              <div className="relative w-full aspect-square bg-black rounded-xl overflow-hidden">
+                <div 
+                  id="scanner-container" 
+                  className="w-full h-full"
+                  style={{
+                    minHeight: '400px',
+                  }}
+                />
 
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-80 h-32 border-3 border-indigo-500 rounded-xl relative">
+                  <div className="w-72 h-72 border-3 border-indigo-500 rounded-xl relative">
                     <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-indigo-500" />
                     <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-indigo-500" />
                     <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-indigo-500" />
@@ -264,7 +365,7 @@ export default function ScannerModal({
             </div>
           </div>
 
-          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
             <button
               onClick={onClose}
               className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"

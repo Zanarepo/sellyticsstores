@@ -1,6 +1,4 @@
-/**
- * ScannerModal - Fixed for mobile scanning to append codes continuously
- */
+
 import React, { useRef, useEffect, useState } from 'react';
 import { 
   X, Camera, Keyboard,
@@ -16,21 +14,17 @@ export default function ScannerModal({
   setScannerMode,
   continuousScan,
   setContinuousScan,
-  isLoading,
-  error,
   manualInput,
   setManualInput,
   onManualSubmit,
+  processScannedCode,
   onClose,
-  // These come from useScanner hook
-  onScanItem,           // ← NEW: Direct access to onScanItem
-  onScanComplete,       // ← NEW: For non-unique mode
-  scanningFor,          // 'unique' or 'standard'
+       // 'unique' or 'standard'
 }) {
   const inputRef = useRef(null);
   const scannerRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
-  const lastScanRef = useRef('');
+
 
   useEffect(() => {
     if (show && inputRef.current) {
@@ -51,67 +45,53 @@ export default function ScannerModal({
 
   // Camera scanning — now triggers onScanItem directly
   useEffect(() => {
-    if (!show || scannerMode !== 'camera') {
-      stopScanner();
-      return;
+  if (!show || scannerMode !== 'camera') {
+    stopScanner();
+    return;
+  }
+
+  const startScanning = async () => {
+    try {
+      const scanner = new Html5Qrcode("scanner-container");
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 12,
+          qrbox: { width: 350, height: 140 },
+          aspectRatio: 1.777778,
+        },
+        (decodedText) => {
+          const code = decodedText.trim();
+          if (!code) return;
+
+          // Use the EXACT SAME logic as external/manual
+          processScannedCode(code);
+
+          // Optional: play sound
+          new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3")
+            .play()
+            .catch(() => {});
+        },
+        () => {}
+      );
+
+      setIsScanning(true);
+    } catch (err) {
+      toast.error('Camera access denied');
+      setIsScanning(false);
     }
+  };
 
-    const startScanning = async () => {
-      try {
-        const scanner = new Html5Qrcode("scanner-container");
-        scannerRef.current = scanner;
+  startScanning();
 
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 12,
-            qrbox: { width: 320, height: 140 },
-            aspectRatio: 1.777778,
-          },
-          (decodedText) => {
-            const code = decodedText.trim();
-            if (!code || code === lastScanRef.current) return;
+  return () => stopScanner();
+}, [show, scannerMode, processScannedCode]);
 
-            lastScanRef.current = code;
-            setTimeout(() => { lastScanRef.current = ''; }, 800);
 
-            // Play sound
-            new Audio("https://freesound.org/data/previews/171/171671_2437358-lq.mp3")
-              .play()
-              .catch(() => {});
 
-            toast.success(`Scanned: ${code.substring(0, 20)}${code.length > 20 ? '...' : ''}`);
 
-            // CRITICAL FIX: Directly trigger the same logic as external/manual
-            onScanItem({ code });
-
-            // For non-unique mode, auto-complete after first scan
-            if (scanningFor === 'standard') {
-              onScanComplete([{ code }]);
-              stopScanner();
-            }
-
-            // Continuous mode stays open
-            if (!continuousScan && scanningFor === 'unique') {
-              stopScanner();
-            }
-          },
-          () => {}
-        );
-
-        setIsScanning(true);
-      } catch (err) {
-        toast.error('Camera access denied');
-        setIsScanning(false);
-      }
-    };
-
-    startScanning();
-
-    return () => stopScanner();
-  }, [show, scannerMode, continuousScan, scanningFor, onScanItem, onScanComplete]);
-
-  if (!show) return null;
 
   return (
     <AnimatePresence>

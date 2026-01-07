@@ -9,7 +9,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
   const [error, setError] = useState(null);
   const [manualInput, setManualInput] = useState('');
 
-  const [, setScannedItems] = useState([]);
+  const [scannedItems, setScannedItems] = useState([]); // Now used for batch tracking
   const [scanningFor, setScanningFor] = useState('standard');
 
   const lastScanRef = useRef('');
@@ -22,6 +22,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     setScanningFor('standard');
   }, []);
 
+  // SAME LOGIC FOR ALL SCAN METHODS (external, manual, AND camera)
   const processScannedCode = useCallback((barcode) => {
     const code = barcode.trim();
     if (!code || code === lastScanRef.current) return;
@@ -30,21 +31,27 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     setTimeout(() => { lastScanRef.current = ''; }, 800);
 
     setScannedItems(prev => {
+      // Duplicate guard for unique mode
       if (scanningFor === 'unique' && prev.some(i => i.code === code)) {
         toast.error('Duplicate IMEI detected', { icon: '⚠️' });
         return prev;
       }
 
       const newItem = { code, size: '', id: Date.now() + Math.random() };
-      setError(null);
+
+      // Always trigger onScanItem (this updates the form UI)
       onScanItem?.(newItem);
 
+      // For non-unique: auto-complete after first scan
       if (scanningFor === 'standard') {
         onScanComplete?.([newItem]);
-        if (!continuousScan) setTimeout(closeScanner, 150);
+        if (!continuousScan) {
+          setTimeout(closeScanner, 150);
+        }
         return [newItem];
       }
 
+      // Unique mode: accumulate
       return [...prev, newItem];
     });
   }, [scanningFor, onScanItem, onScanComplete, continuousScan, closeScanner]);
@@ -53,6 +60,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     setScanningFor(type);
     setScannedItems([]);
     setScannerMode(mode);
+    setContinuousScan(type === 'unique'); // Continuous on by default for unique
     setShowScanner(true);
     setError(null);
     setManualInput('');
@@ -69,6 +77,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     setManualInput('');
   }, [manualInput, processScannedCode]);
 
+  // External scanner (keyboard input)
   useEffect(() => {
     if (!showScanner || scannerMode !== 'external') return;
 
@@ -97,6 +106,7 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     };
   }, [showScanner, scannerMode, processScannedCode]);
 
+  // Return processScannedCode so ScannerModal can use it for camera
   return {
     showScanner,
     scannerMode,
@@ -110,5 +120,9 @@ export default function useScanner({ onScanItem, onScanComplete }) {
     handleManualSubmit,
     openScanner,
     closeScanner,
+    processScannedCode, // ← NEW: Expose this for camera scanning
+    scanningFor,
+    scannedItems,
+    setScannedItems
   };
 }

@@ -260,6 +260,8 @@ const handleSubmit = async (e) => {
     scanningFor={scanner.scanningFor}
     onScanItem={(code) => scanner.onScanItem({ code })}
     onScanComplete={scanner.onScanComplete}
+    processScannedCode={scanner.processScannedCode}
+    
   />
 )}
     </>

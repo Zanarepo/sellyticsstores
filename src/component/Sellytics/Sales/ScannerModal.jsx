@@ -112,34 +112,41 @@ export default function ScannerModal({
           cameraId = cameras[0].id;
         }
 
-        // Calculate focused scanning area (smaller, more precise for mobile)
-        // Use function-based qrbox that adapts to viewport but stays focused
-        const getQrBoxSize = () => {
+        // Calculate rectangular scanning area (barcode-shaped: wider than tall)
+        // Use function-based qrbox that creates a rectangular focus area
+        const getQrBoxDimensions = () => {
           const viewport = Math.min(window.innerWidth, window.innerHeight);
-          // Use smaller focused area: 60-65% of smaller viewport dimension
-          // This creates a tight, focused scanning area
-          const size = Math.floor(viewport * 0.60);
-          // Clamp between 180-250 for optimal mobile scanning
-          return Math.max(180, Math.min(250, size));
+          // Rectangle dimensions: wider than tall (typical barcode shape)
+          // Width: 75% of viewport, Height: ~40% of viewport
+          const width = Math.floor(viewport * 0.75);
+          const height = Math.floor(viewport * 0.40);
+          // Clamp dimensions for optimal mobile scanning
+          return {
+            width: Math.max(200, Math.min(320, width)),
+            height: Math.max(120, Math.min(180, height))
+          };
         };
 
-        const qrBoxSize = getQrBoxSize();
+        const qrBoxDims = getQrBoxDimensions();
 
-        // Camera configuration with enhanced settings for Android/iOS - TIGHT FOCUS
+        // Camera configuration with enhanced settings for Android/iOS - RECTANGULAR FOCUS
         const config = {
           fps: 30,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Return a smaller, more focused scanning box
-            const size = qrBoxSize;
-            const minEdgePercentage = 0.65; // 65% of viewfinder width
-            const minEdgeSize = Math.floor(viewfinderWidth * minEdgePercentage);
-            const finalSize = Math.min(size, minEdgeSize);
+            // Return a rectangular scanning box (wider than tall - barcode shape)
+            const maxWidth = Math.floor(viewfinderWidth * 0.80); // Max 80% of viewfinder width
+            const maxHeight = Math.floor(viewfinderHeight * 0.45); // Max 45% of viewfinder height
+            
+            // Ensure it fits within viewfinder and maintains barcode-like proportions
+            const width = Math.min(qrBoxDims.width, maxWidth);
+            const height = Math.min(qrBoxDims.height, maxHeight);
+            
             return {
-              width: finalSize,
-              height: finalSize
+              width: width,
+              height: height
             };
           },
-          aspectRatio: 1.0,
+          // Remove square aspect ratio constraint for rectangular scanning
           disableFlip: false,
           videoConstraints: {
             facingMode: "environment",
@@ -354,25 +361,40 @@ export default function ScannerModal({
                   }}
                 />
 
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* Smaller, more focused scanning frame for mobile */}
+                {/* Blur overlay - darkens/blurs everything outside rectangular scanning area */}
+                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+                  {/* Top dark area */}
+                  <div className="absolute top-0 left-0 right-0 bg-black/65 backdrop-blur-[3px]" style={{ height: '30%' }} />
+                  {/* Bottom dark area */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/65 backdrop-blur-[3px]" style={{ height: '30%' }} />
+                  {/* Left dark area */}
+                  <div className="absolute left-0 bg-black/65 backdrop-blur-[3px]" style={{ top: '30%', bottom: '30%', width: '12.5%' }} />
+                  {/* Right dark area */}
+                  <div className="absolute right-0 bg-black/65 backdrop-blur-[3px]" style={{ top: '30%', bottom: '30%', width: '12.5%' }} />
+                </div>
+
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
+                  {/* Rectangular scanning frame (barcode-shaped: wider than tall) */}
                   <div 
-                    className="border-3 border-indigo-500 rounded-xl relative"
+                    className="border-3 border-indigo-500 rounded-lg relative"
                     style={{
-                      width: '60%',
-                      maxWidth: '250px',
-                      minWidth: '180px',
-                      aspectRatio: '1 / 1'
+                      width: '75%',
+                      maxWidth: '320px',
+                      minWidth: '200px',
+                      height: '180px',
+                      maxHeight: '180px',
+                      minHeight: '120px'
                     }}
                   >
-                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-3 border-l-3 border-indigo-500" />
-                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-3 border-r-3 border-indigo-500" />
-                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-3 border-l-3 border-indigo-500" />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-3 border-r-3 border-indigo-500" />
+                    {/* Corner indicators */}
+                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-3 border-l-3 border-indigo-500 rounded-tl-lg" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-3 border-r-3 border-indigo-500 rounded-tr-lg" />
+                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-3 border-l-3 border-indigo-500 rounded-bl-lg" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-3 border-r-3 border-indigo-500 rounded-br-lg" />
                     {isScanning && (
                       <motion.div
                         className="absolute inset-x-2 h-0.5 bg-indigo-400 rounded-full shadow-lg"
-                        animate={{ top: ['15%', '85%', '15%'] }}
+                        animate={{ top: ['10%', '90%', '10%'] }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                       />
                     )}
@@ -406,39 +428,68 @@ export default function ScannerModal({
               </div>
             )}
 
-            {/* Manual Input */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-                Manual Entry
-              </label>
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={manualInput}
-                  onChange={e => setManualInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && onManualSubmit()}
-                  placeholder="Enter IMEI or barcode"
-                  className="flex-1 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={onManualSubmit}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Manual Input */}
+<div className="space-y-2 w-full">
+  <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+    Manual Entry
+  </label>
 
-          <div className="p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
-            <button
-              onClick={onClose}
-              className="w-full py-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"
-            >
-              Done
-            </button>
-          </div>
+  <div className="flex flex-col sm:flex-row gap-2 w-full">
+    <input
+      ref={inputRef}
+      type="text"
+      value={manualInput}
+      onChange={(e) => setManualInput(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && onManualSubmit()}
+      placeholder="Enter IMEI or barcode"
+      className="
+        w-full min-w-0
+        px-4 py-3
+        border border-slate-200 dark:border-slate-700
+        rounded-lg
+        bg-white dark:bg-slate-800
+        focus:ring-2 focus:ring-indigo-500
+        text-sm
+      "
+    />
+
+    <button
+      onClick={onManualSubmit}
+      className="
+        w-full sm:w-auto
+        px-6 py-3
+        bg-indigo-600 hover:bg-indigo-700
+        text-white
+        rounded-lg
+        font-medium
+        text-sm
+        whitespace-nowrap
+      "
+    >
+      Add
+    </button>
+  </div>
+</div>
+
+{/* Footer */}
+<div className="p-4 sm:p-5 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+  <button
+    onClick={onClose}
+    className="
+      w-full
+      py-3
+      border border-slate-200 dark:border-slate-700
+      rounded-lg
+      hover:bg-slate-100 dark:hover:bg-slate-700
+      font-medium
+      text-sm
+    "
+  >
+    Done
+  </button>
+</div>
+</div>
+
         </motion.div>
       </motion.div>
     </AnimatePresence>

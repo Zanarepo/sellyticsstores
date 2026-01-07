@@ -122,8 +122,7 @@ useEffect(() => {
     
     // Check for duplicate in current checkout
     if (checkoutState.hasDuplicateDevice(normalizedBarcode, targetLineId, targetRowKey)) {
-      toast.error(`Device ID "${normalizedBarcode}" is already in the cart`);
-      return { success: false, error: 'Duplicate device ID' };
+      return { success: false, error: `Device ID "${normalizedBarcode}" is already in the cart` };
     }
     
     // Find product
@@ -650,12 +649,10 @@ const handleDeleteOfflineSale = useCallback(async (saleId) => {
         setScannerMode={scanner.setScannerMode}
         continuousScan={scanner.continuousScan}
         setContinuousScan={scanner.setContinuousScan}
-        isLoading={scanner.isLoading}
-        error={scanner.error}
-        videoRef={scanner.videoRef}
         manualInput={scanner.manualInput}
         setManualInput={scanner.setManualInput}
         onManualSubmit={scanner.handleManualSubmit}
+        processScannedCode={scanner.processScannedCode}
         onClose={scanner.closeScanner}
       />
 

@@ -4,251 +4,171 @@
  * @version 2.0.0
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
 
 export default function useScanner(onScanSuccess) {
   // Scanner state
   const [showScanner, setShowScanner] = useState(false);
-  const [scannerMode, setScannerMode] = useState('camera');
-  const [continuousScan, setContinuousScan] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [scannerMode, setScannerMode] = useState('external');
+  const [continuousScan, setContinuousScan] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [targetLineId, setTargetLineId] = useState(null);
   
   // Refs
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
   const externalBufferRef = useRef('');
   const externalTimeoutRef = useRef(null);
-  const lastScanRef = useRef({ code: '', time: 0 });
-  const scanIntervalRef = useRef(null);
+  const lastScanRef = useRef('');
+  const scanTimeoutRef = useRef(null);
+  const isProcessingRef = useRef(false);
   
-  // Audio context for sounds
-  const audioCtxRef = useRef(null);
-  
-  // Get or create audio context
-  const getAudioContext = useCallback(() => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+  // Close scanner
+  const closeScanner = useCallback(() => {
+    setShowScanner(false);
+    setManualInput('');
+    setTargetLineId(null);
+    lastScanRef.current = '';
+    isProcessingRef.current = false;
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
     }
-    return audioCtxRef.current;
   }, []);
-  
-  // Play success sound
-  const playSuccessSound = useCallback(() => {
-    try {
-      const ctx = getAudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.frequency.value = 800;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-      
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.15);
-    } catch (e) {
-      // Audio not available
-    }
-  }, [getAudioContext]);
-  
-  // Play error sound
-  const playErrorSound = useCallback(() => {
-    try {
-      const ctx = getAudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.frequency.value = 300;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-      
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {
-      // Audio not available
-    }
-  }, [getAudioContext]);
 
-  // Sanitize barcode input
-  const sanitizeBarcode = useCallback((code) => {
-    if (!code || typeof code !== 'string') return '';
+  // Process scanned code - SAME LOGIC FOR ALL SCAN METHODS (external, manual, AND camera)
+  const processScannedCode = useCallback(async (barcode) => {
+    const code = barcode.trim();
+    if (!code) return;
 
-    let sanitized = '';
-    for (let i = 0; i < code.length; i++) {
-      const charCode = code.charCodeAt(i);
-      if ((charCode >= 32 && charCode < 127)) {
-        sanitized += code[i];
+    // Prevent duplicate scans with improved debouncing
+    if (code === lastScanRef.current || isProcessingRef.current) {
+      return;
+    }
+
+    // Mark as processing to prevent rapid duplicate scans
+    isProcessingRef.current = true;
+    lastScanRef.current = code;
+
+    // Clear any existing timeout
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
+
+    // Reset the last scan reference after a delay (2 seconds for camera scans)
+    scanTimeoutRef.current = setTimeout(() => { 
+      lastScanRef.current = '';
+      isProcessingRef.current = false;
+      scanTimeoutRef.current = null;
+    }, 2000);
+
+    try {
+      const result = await onScanSuccess(code, targetLineId);
+      
+      if (result.success) {
+        // Show success notification with product name (like external scanner)
+        const productName = result.productName || code.substring(0, 15);
+        toast.success(`✓ ${productName}`, {
+          duration: 2000,
+          position: 'top-right',
+          style: {
+            background: '#D1FAE5',
+            color: '#065F46',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+            maxWidth: '250px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          },
+          iconTheme: {
+            primary: '#10B981',
+            secondary: '#FFFFFF',
+          },
+        });
+        
+        if (!continuousScan) {
+          setTimeout(closeScanner, 150);
+        }
+      } else {
+        // Show error notifications for all error scenarios
+        if (result.error) {
+          toast.error(result.error, { 
+            duration: 3000,
+            position: 'top-right',
+            style: {
+              background: '#FEE2E2',
+              color: '#991B1B',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 500,
+              maxWidth: '300px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            },
+          });
+        }
       }
+    } catch (err) {
+      // Error handling for unexpected errors
+      toast.error(err.message || 'Scan failed', {
+        duration: 2000,
+        position: 'top-right',
+      });
+      console.error('Scan error:', err);
     }
-    return sanitized.trim();
-  }, []);
 
-  
-  // Stop camera
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
+    // Reset processing flag after a short delay to allow next scan
+    setTimeout(() => {
+      isProcessingRef.current = false;
+    }, 300);
+  }, [onScanSuccess, targetLineId, continuousScan, closeScanner]);
+
   
   // Open scanner
-  const openScanner = useCallback((mode = 'camera', lineId = null) => {
+  const openScanner = useCallback((mode = 'external', lineId = null) => {
     setScannerMode(mode);
     setShowScanner(true);
-    setError(null);
     setManualInput('');
     setTargetLineId(lineId);
   }, []);
   
-  // Close scanner
-  const closeScanner = useCallback(() => {
-    stopCamera();
-    setShowScanner(false);
-    setError(null);
-    setManualInput('');
-    setTargetLineId(null);
-  }, [stopCamera]);
-
-  // Handle successful scan
-  const handleScan = useCallback(async (code, lineId = null) => {
-    const normalizedCode = sanitizeBarcode(code);
-    if (!normalizedCode) return;
-    
-    const now = Date.now();
-    
-    // Debounce: prevent same code within 1 second
-    if (
-      lastScanRef.current.code === normalizedCode && 
-      now - lastScanRef.current.time < 1000
-    ) {
-      return;
-    }
-    
-    lastScanRef.current = { code: normalizedCode, time: now };
-    
-    try {
-      const result = await onScanSuccess(normalizedCode, lineId || targetLineId);
-      
-      if (result.success) {
-        playSuccessSound();
-        toast.success(`Added: ${result.productName || normalizedCode}`, { 
-          icon: '📦',
-          autoClose: 2000 
-        });
-        
-        if (!continuousScan) {
-          closeScanner();
-        }
-      } else {
-        playErrorSound();
-        toast.error(result.error || 'Failed to process scan', { icon: '❌' });
-        setError(result.error || 'Failed to process scan');
-      }
-    } catch (err) {
-      playErrorSound();
-      toast.error(err.message || 'Scan failed');
-      setError(err.message || 'Scan failed');
-    }
-  }, [onScanSuccess, continuousScan, targetLineId, playSuccessSound, playErrorSound, sanitizeBarcode, closeScanner]);
-  
-  // Start camera
-  const startCamera = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const constraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      };
-      
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Camera error:', err);
-      setError('Could not access camera. Please check permissions.');
-      setIsLoading(false);
-    }
-  }, []);
-  
   // Handle manual input
-  const handleManualSubmit = useCallback(async () => {
-    const code = sanitizeBarcode(manualInput);
-    if (!code) {
-      setError('Please enter a barcode or ID');
+  const handleManualSubmit = useCallback(() => {
+    if (!manualInput.trim()) {
+      toast.error('Please enter a code');
       return;
     }
-    
-    await handleScan(code);
+    processScannedCode(manualInput.trim());
     setManualInput('');
-  }, [manualInput, handleScan, sanitizeBarcode]);
+  }, [manualInput, processScannedCode]);
   
   // External scanner keyboard handler
   useEffect(() => {
     if (!showScanner || scannerMode !== 'external') return;
     
-    const handleKeyPress = (e) => {
-      // Clear timeout
-      if (externalTimeoutRef.current) {
-        clearTimeout(externalTimeoutRef.current);
-      }
-      
+    let buffer = '';
+    let timeout = null;
+
+    const handler = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
+
       if (e.key === 'Enter') {
-        const code = sanitizeBarcode(externalBufferRef.current);
-        externalBufferRef.current = '';
-        
-        if (code) {
-          handleScan(code);
+        if (buffer) {
+          processScannedCode(buffer);
+          buffer = '';
         }
-      } else if (e.key.length === 1) {
-        externalBufferRef.current += e.key;
-        
-        // Auto-clear after 100ms of no input (scanner sends rapidly)
-        externalTimeoutRef.current = setTimeout(() => {
-          externalBufferRef.current = '';
-        }, 100);
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        buffer += e.key;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => { buffer = ''; }, 100);
       }
     };
-    
-    document.addEventListener('keypress', handleKeyPress);
-    
+
+    window.addEventListener('keydown', handler);
     return () => {
-      document.removeEventListener('keypress', handleKeyPress);
-      if (externalTimeoutRef.current) {
-        clearTimeout(externalTimeoutRef.current);
-      }
+      window.removeEventListener('keydown', handler);
+      clearTimeout(timeout);
     };
-  }, [showScanner, scannerMode, handleScan, sanitizeBarcode]);
+  }, [showScanner, scannerMode, processScannedCode]);
   
   // Global external scanner listener (when scanner is closed)
   useEffect(() => {
@@ -257,7 +177,7 @@ export default function useScanner(onScanSuccess) {
     let buffer = '';
     let timeout = null;
     
-    const handleKeyPress = (e) => {
+    const handler = (e) => {
       // Only capture if no input is focused
       const activeElement = document.activeElement;
       const isInputFocused = activeElement && (
@@ -271,13 +191,11 @@ export default function useScanner(onScanSuccess) {
       if (timeout) clearTimeout(timeout);
       
       if (e.key === 'Enter') {
-        const code = sanitizeBarcode(buffer);
-        buffer = '';
-        
-        if (code && code.length >= 4) {
-          handleScan(code);
+        if (buffer && buffer.length >= 4) {
+          processScannedCode(buffer);
         }
-      } else if (e.key.length === 1) {
+        buffer = '';
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         buffer += e.key;
         
         timeout = setTimeout(() => {
@@ -286,50 +204,28 @@ export default function useScanner(onScanSuccess) {
       }
     };
     
-    document.addEventListener('keypress', handleKeyPress);
+    window.addEventListener('keydown', handler);
     
     return () => {
-      document.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener('keydown', handler);
       if (timeout) clearTimeout(timeout);
     };
-  }, [showScanner, handleScan, sanitizeBarcode]);
-  
-  // Start camera when scanner opens in camera mode
-  useEffect(() => {
-    if (showScanner && scannerMode === 'camera') {
-      startCamera();
-    }
-    
-    return () => {
-      if (!showScanner) {
-        stopCamera();
-      }
-    };
-  }, [showScanner, scannerMode, startCamera, stopCamera]);
+  }, [showScanner, processScannedCode]);
   
   return {
-    // State
     showScanner,
     scannerMode,
-    continuousScan,
-    isLoading,
-    error,
-    manualInput,
-    targetLineId,
-    
-    // Refs
-    videoRef,
-    
-    // Setters
     setScannerMode,
+    continuousScan,
     setContinuousScan,
+    manualInput,
     setManualInput,
-    setError,
-    
-    // Actions
+    handleManualSubmit,
     openScanner,
     closeScanner,
-    handleScan,
-    handleManualSubmit
+    processScannedCode, // Expose this for camera scanning
+    targetLineId,
+    externalBufferRef,
+    externalTimeoutRef
   };
 }

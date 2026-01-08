@@ -30,6 +30,12 @@ const PaymentComponent = () => {
   const [paymentReady, setPaymentReady] = useState(false);
   const [error, setError] = useState(null);
 
+  // Extract currency info from plan
+  const selectedCurrency = plan?.currency || 'NGN';
+  const currencySymbol = plan?.currencySymbol || '₦';
+  const displayPrice = plan?.convertedPrice || plan?.price || 0;
+  const originalPrice = plan?.originalPrice || plan?.price || 0;
+
   useEffect(() => {
     const storedStoreId = localStorage.getItem('store_id');
     const storedUserId = localStorage.getItem('user_id');
@@ -76,15 +82,45 @@ const PaymentComponent = () => {
     }
   };
 
+  // Format price with proper currency
+  const formatPrice = (price, currency) => {
+    const currencyConfig = {
+      NGN: { locale: 'en-NG' },
+      USD: { locale: 'en-US' },
+      GBP: { locale: 'en-GB' },
+      EUR: { locale: 'en-EU' },
+      ZAR: { locale: 'en-ZA' },
+      KES: { locale: 'en-KE' },
+      GHS: { locale: 'en-GH' },
+    };
+
+    try {
+      return new Intl.NumberFormat(currencyConfig[currency]?.locale || 'en-US', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(price);
+    } catch {
+      return `${currencySymbol}${price.toLocaleString()}`;
+    }
+  };
+
+  // Paystack configuration
+  // Note: Paystack only supports NGN, so we need to convert back for payment processing
+  // But display the selected currency to the user
   const paystackConfig = {
     email: userEmail || storeEmail,
-    amount: plan?.price * 100,
+    amount: originalPrice * 100, // Paystack requires amount in kobo (NGN cents)
     publicKey: process.env.REACT_APP_PAYSTACK_PUBLIC_KEY,
     metadata: {
       store_id: storeId,
       user_id: userId,
       owner_id: ownerId,
       plan_id: plan?.id,
+      selected_currency: selectedCurrency,
+      display_price: displayPrice,
+      original_price: originalPrice,
     },
   };
 
@@ -136,18 +172,61 @@ const PaymentComponent = () => {
 
           {paymentReady && plan ? (
             <motion.div
-              className="bg-white dark:bg-gray-900 rounded-xl p-6  text-center"
+              className="bg-white dark:bg-gray-900 rounded-xl p-6 text-center"
               variants={textVariants}
             >
-              <h3 className="text-xl md:text-2xl font-semibold text-indigo-800 dark:text-indigo-200 mb-3">
-                {plan.name}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4 text-lg font-medium">
-                {plan.description}
-              </p>
-              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-6">
-                ₦{plan.price.toLocaleString()}
-              </p>
+              {/* Plan Details */}
+              <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl md:text-2xl font-semibold text-indigo-800 dark:text-indigo-200 mb-3">
+                  {plan.name} Plan
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-4 text-base">
+                  {plan.description}
+                </p>
+              </div>
+
+              {/* Price Display */}
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Total Amount
+                </p>
+                <p className="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2">
+                  {formatPrice(displayPrice, selectedCurrency)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  per month
+                </p>
+
+                {/* Show conversion note if not NGN */}
+                {selectedCurrency !== 'NGN' && (
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      💡 Price shown in {selectedCurrency}
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      Payment will be processed in NGN: {formatPrice(originalPrice, 'NGN')}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Details */}
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Email</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {userEmail || storeEmail}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Payment Method</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Paystack
+                  </span>
+                </div>
+              </div>
+
+              {/* Pay Button */}
               <motion.div
                 className="mt-6"
                 variants={buttonVariants}
@@ -156,12 +235,20 @@ const PaymentComponent = () => {
               >
                 <PaystackButton
                   {...paystackConfig}
-                  className="bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white py-3 px-8 rounded-xl text-lg font-medium shadow-md hover:shadow-lg transition-all duration-300"
-                  aria-label={`Pay for ${plan.name}`}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white py-4 px-8 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  aria-label={`Pay ${formatPrice(displayPrice, selectedCurrency)} for ${plan.name}`}
                 >
-                  Pay Now
+                  Pay {formatPrice(displayPrice, selectedCurrency)}
                 </PaystackButton>
               </motion.div>
+
+              {/* Security Badge */}
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+                <span>Secured by Paystack</span>
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -171,10 +258,17 @@ const PaymentComponent = () => {
               aria-live="polite"
             >
               {error ? (
-                <p className="text-red-500 text-lg font-medium">{error}</p>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <p className="text-red-600 dark:text-red-400 text-lg font-medium">{error}</p>
+                </div>
               ) : (
                 <>
-                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                   <p className="text-indigo-500 dark:text-indigo-400 text-lg font-medium">
                     Loading payment details...
                   </p>

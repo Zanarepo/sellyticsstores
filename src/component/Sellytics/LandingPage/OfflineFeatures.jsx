@@ -68,7 +68,7 @@ export default function OfflineFeatures() {
           className="text-center mb-12 sm:mb-16"
         >
           <span className="inline-block px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium text-emerald-400 bg-emerald-500/10 rounded-full border border-emerald-500/20 mb-4 sm:mb-6">
-            Built for Africa
+            Built for a dynamic Environment
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 sm:mb-6 px-4">
             Business Never Stops.{' '}
@@ -77,7 +77,7 @@ export default function OfflineFeatures() {
             </span>
           </h2>
           <p className="max-w-3xl mx-auto text-base sm:text-lg text-slate-400 px-4 mb-8 sm:mb-10">
-            Designed for the real Africa. Sellytics works perfectly in low-bandwidth areas, 
+           Sellytics works perfectly in low-bandwidth areas, 
             remote locations, and crowded markets. Run your business anywhere, anytime — 
             with or without internet.
           </p>

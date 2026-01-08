@@ -108,12 +108,12 @@ export default function HeroSection() {
               Start Free Trial
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
             </Link>
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-medium text-white border border-white/10 rounded-full hover:bg-white/5 transition-all duration-300 backdrop-blur-xl">
+           {/* <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-medium text-white border border-white/10 rounded-full hover:bg-white/5 transition-all duration-300 backdrop-blur-xl">
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 flex items-center justify-center">
                 <Play className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5" />
               </div>
               Watch Demo
-            </button>
+            </button>*/}
           </motion.div>
 
           {/* Stats */}

@@ -6,13 +6,17 @@ import {
   Package, 
   Sparkles, 
   AlertTriangle, 
-
   TrendingUp,
   Activity,
   CheckCircle2,
   XCircle,
   Search,
-  ScanLine
+  ScanLine,
+  Store,
+  MapPin,
+  Users,
+  DollarSign,
+  TrendingDown
 } from 'lucide-react';
 
 const features = [
@@ -23,6 +27,14 @@ const features = [
     gradient: 'from-blue-500 to-cyan-400',
     hasDemo: true,
     demoType: 'dashboard'
+  },
+  {
+    icon: Store,
+    title: 'Multi-Store Access',
+    description: 'Manage all your business in multiple locations from a single unified dashboard.',
+    gradient: 'from-violet-500 to-purple-400',
+    hasDemo: true,
+    demoType: 'multistore'
   },
   {
     icon: Bell,
@@ -63,13 +75,11 @@ const features = [
 const DashboardDemo = () => {
   return (
     <div className="relative w-full max-w-md mx-auto p-4 sm:p-6 bg-slate-900/80 rounded-2xl border border-blue-500/20 backdrop-blur-xl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-white">Today's Overview</h4>
         <Activity className="w-4 h-4 text-blue-400" />
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         {[
           { label: 'Revenue', value: '$124K', change: '+12%', color: 'emerald' },
@@ -92,7 +102,6 @@ const DashboardDemo = () => {
         ))}
       </div>
 
-      {/* Mini Chart */}
       <div className="relative h-24 mb-2">
         <svg className="w-full h-full" viewBox="0 0 300 100">
           <motion.path
@@ -118,6 +127,174 @@ const DashboardDemo = () => {
   );
 };
 
+const MultiStoreDemo = () => {
+  const stores = [
+    { 
+      id: 1, 
+      name: 'Buchi Stores', 
+      location: 'Lagos',
+      revenue: '$45.2K', 
+      orders: 234, 
+      trend: 'up',
+      performance: 92,
+      staff: 8,
+      status: 'active'
+    },
+    { 
+      id: 2, 
+      name: 'Calabar Branch', 
+      location: 'Calabar',
+      revenue: '$38.5K', 
+      orders: 189, 
+      trend: 'up',
+      performance: 85,
+      staff: 6,
+      status: 'active'
+    },
+    { 
+      id: 3, 
+      name: 'Airport Store', 
+      location: 'Aba',
+      revenue: '₦28.1K', 
+      orders: 142, 
+      trend: 'down',
+      performance: 71,
+      staff: 5,
+      status: 'warning'
+    },
+  ];
+
+  return (
+    <div className="relative w-full max-w-2xl mx-auto p-4 sm:p-6 bg-slate-900/80 rounded-2xl border border-violet-500/20 backdrop-blur-xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-1">Multi-Store Dashboard</h4>
+          <p className="text-xs text-slate-400">Manage all locations in one place</p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/30 rounded-full">
+          <Store className="w-3.5 h-3.5 text-violet-400" />
+          <span className="text-xs text-violet-300 font-medium">3 Stores</span>
+        </div>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[
+          { label: 'Total Revenue', value: '$111.8K', icon: DollarSign, color: 'emerald' },
+          { label: 'Total Orders', value: '565', icon: Package, color: 'blue' },
+          { label: 'Total Staff', value: '19', icon: Users, color: 'purple' },
+        ].map((stat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-white/5 rounded-xl p-3 border border-white/10"
+          >
+            <stat.icon className={`w-4 h-4 text-${stat.color}-400 mb-2`} />
+            <div className="text-xs text-slate-400 mb-1">{stat.label}</div>
+            <div className="text-base font-bold text-white">{stat.value}</div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Store Cards */}
+      <div className="space-y-3">
+        {stores.map((store, index) => (
+          <motion.div
+            key={store.id}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.2 }}
+            className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-violet-500/30 transition-all group"
+          >
+            {/* Store Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Store className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-semibold text-white mb-1">{store.name}</h5>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <MapPin className="w-3 h-3" />
+                    <span className="truncate">{store.location}</span>
+                  </div>
+                </div>
+              </div>
+              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                store.status === 'active' 
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+              }`}>
+                {store.status === 'active' ? '● Active' : '⚠ Warning'}
+              </div>
+            </div>
+
+            {/* Store Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Revenue</div>
+                <div className="text-sm font-bold text-white">{store.revenue}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Orders</div>
+                <div className="text-sm font-bold text-white">{store.orders}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 mb-1">Staff</div>
+                <div className="text-sm font-bold text-white">{store.staff}</div>
+              </div>
+            </div>
+
+            {/* Performance Bar */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-slate-400">Performance</span>
+                <div className="flex items-center gap-1">
+                  {store.trend === 'up' ? (
+                    <TrendingUp className="w-3 h-3 text-emerald-400" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3 text-red-400" />
+                  )}
+                  <span className={store.trend === 'up' ? 'text-emerald-400' : 'text-red-400'}>
+                    {store.performance}%
+                  </span>
+                </div>
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <motion.div
+                  className={`h-full rounded-full ${
+                    store.performance >= 85 
+                      ? 'bg-gradient-to-r from-emerald-500 to-green-400'
+                      : store.performance >= 75
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-400'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-400'
+                  }`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${store.performance}%` }}
+                  transition={{ duration: 1, delay: index * 0.2 }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mt-4 pt-4 border-t border-white/10">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">Quick Actions</span>
+          <button className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium transition-colors">
+            Add Store
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AlertsDemo = () => {
   const [alerts] = useState([
     { id: 1, type: 'warning', message: 'iPhone 13 Pro stock low (3 left)', icon: Package },
@@ -133,7 +310,6 @@ const AlertsDemo = () => {
 
   return (
     <div className="relative w-full max-w-md mx-auto p-4 sm:p-6 bg-slate-900/80 rounded-2xl border border-orange-500/20 backdrop-blur-xl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-white">Live Alerts</h4>
         <div className="flex items-center gap-1">
@@ -146,7 +322,6 @@ const AlertsDemo = () => {
         </div>
       </div>
 
-      {/* Alerts List */}
       <div className="space-y-2">
         <AnimatePresence>
           {alerts.map((alert, index) => (
@@ -188,7 +363,6 @@ const AuditDemo = () => {
 
   return (
     <div className="relative w-full max-w-md mx-auto p-4 sm:p-6 bg-slate-900/80 rounded-2xl border border-indigo-500/20 backdrop-blur-xl">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-sm font-semibold text-white">Store Audit</h4>
         <div className="flex items-center gap-2">
@@ -211,7 +385,6 @@ const AuditDemo = () => {
         </div>
       </div>
 
-      {/* Scan Animation */}
       <div className="relative mb-4 h-16 bg-indigo-950/50 rounded-xl overflow-hidden border border-indigo-500/20">
         <AnimatePresence>
           {scanning && (
@@ -228,7 +401,6 @@ const AuditDemo = () => {
         </div>
       </div>
 
-      {/* Products List */}
       <div className="space-y-2">
         {products.map((product, index) => (
           <motion.div
@@ -258,7 +430,6 @@ const AuditDemo = () => {
         ))}
       </div>
 
-      {/* Summary */}
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-slate-400">Progress</span>
         <span className="text-white font-medium">75% Complete</span>
@@ -293,12 +464,10 @@ export default function FeaturesSection() {
 
   return (
     <section id="features" className="relative py-20 sm:py-32 overflow-hidden">
-      {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px]" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -321,7 +490,6 @@ export default function FeaturesSection() {
           </p>
         </motion.div>
 
-        {/* Interactive Demos Section */}
         <div className="mb-16 sm:mb-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -334,9 +502,8 @@ export default function FeaturesSection() {
             <p className="text-sm sm:text-base text-slate-400">Click on a feature to view live demo</p>
           </motion.div>
 
-          {/* Demo Selector */}
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            {['dashboard', 'alerts', 'audit'].map((type) => (
+            {['dashboard', 'multistore', 'alerts', 'audit'].map((type) => (
               <button
                 key={type}
                 onClick={() => setActiveDemo(activeDemo === type ? null : type)}
@@ -347,13 +514,13 @@ export default function FeaturesSection() {
                 }`}
               >
                 {type === 'dashboard' && '📊 Dashboard'}
+                {type === 'multistore' && '🏪 Multi-Store'}
                 {type === 'alerts' && '🔔 Smart Alerts'}
                 {type === 'audit' && '🔍 Store Audit'}
               </button>
             ))}
           </div>
 
-          {/* Active Demo Display */}
           <AnimatePresence mode="wait">
             {activeDemo && (
               <motion.div
@@ -365,6 +532,7 @@ export default function FeaturesSection() {
                 className="flex justify-center"
               >
                 {activeDemo === 'dashboard' && <DashboardDemo />}
+                {activeDemo === 'multistore' && <MultiStoreDemo />}
                 {activeDemo === 'alerts' && <AlertsDemo />}
                 {activeDemo === 'audit' && <AuditDemo />}
               </motion.div>
@@ -372,7 +540,6 @@ export default function FeaturesSection() {
           </AnimatePresence>
         </div>
 
-        {/* Features Grid */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -389,19 +556,16 @@ export default function FeaturesSection() {
                 feature.hasDemo ? 'cursor-pointer' : ''
               }`}
             >
-              {/* Demo Badge */}
               {feature.hasDemo && (
                 <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-xs text-indigo-300 font-medium">
                   View Demo
                 </div>
               )}
 
-              {/* Icon */}
               <div className={`inline-flex p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br ${feature.gradient} mb-4 sm:mb-6 shadow-lg`}>
                 <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
 
-              {/* Content */}
               <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">
                 {feature.title}
               </h3>
@@ -409,7 +573,6 @@ export default function FeaturesSection() {
                 {feature.description}
               </p>
 
-              {/* Hover Glow */}
               <div className={`absolute inset-0 rounded-2xl sm:rounded-3xl bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
             </motion.div>
           ))}

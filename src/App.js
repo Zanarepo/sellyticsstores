@@ -18,12 +18,11 @@ import TeamSignup from "./component/Auth/TeamSignup";
 
 import Admins from "./component/AdminAuth/Admins";
 import AdminHome from "./component/AdminDashboard/AdminHome";
-import SalesMetrics from "./component/UserDashboard/SalesMetrics";
-import PoductPurchaseCost from "./component/UserDashboard/ProductsPurchaseCost";
 
-import SalesTracker from "./component/UserDashboard/SalesTracker";
-import StoresAdmin from "./component/Ops/StoresAdmin";
-import Profile from "./component/UserDashboard/Profile";
+
+
+import MultiStoreDashboard from "./component/Sellytics/MultiStoreDB/MultiStoreDashboard";
+
 import SellyticsPayment from "./component/Payments/SellyticsPayment";
 
 
@@ -43,8 +42,10 @@ import LandingPage from "./component/Sellytics/LandingPage/LandingPage";
 import WarehouseHub from "./component/Sellytics/Hub/WarehouseHub";
 
 
-import ReceiptManager from "./component/Sellytics/ReceiptManager/ReceiptManager";
+
 import StoreDashboard from "./component/Sellytics/StoreDashboard";
+
+import MultiSalesDashboard from "./component/Sellytics/MultiStoreDB/MultiSales/MultiSalesDashboard";
 
 const App = () => {
   return (
@@ -83,12 +84,12 @@ const App = () => {
               <Route path="/dashboard" element={<StoreDashboard />} />
               <Route path="/admin-dashboard" element={<AdminHome />} />
               <Route path="/team-dashboard" element={<StoreUsersHome />} />
-              <Route path="/sales-metrics" element={<SalesMetrics />} />
-              <Route path="/product-cost" element={<PoductPurchaseCost />} />
+
            
-              <Route path="/salestrack" element={<SalesTracker />} />
-              <Route path="/owner-dashboard" element={<StoresAdmin />} />
-              <Route path="/profile" element={<Profile />} />
+           
+              
+              <Route path="/owner-dashboard" element={<MultiStoreDashboard />} />
+           
               <Route path="/payment" element={<SellyticsPayment />} />
       
            
@@ -100,7 +101,7 @@ const App = () => {
               <Route path="/upgrade" element={<PricingFeatures />} />
               <Route path="/shareholders" element={<ShareholderModule />} />
              
-              <Route path="/ano" element={<ReceiptManager />} />
+              <Route path="/ano" element={<MultiSalesDashboard/>} />
            
 
             {/* Warehouse Module Routes – Wrapped in WarehouseProvider */}

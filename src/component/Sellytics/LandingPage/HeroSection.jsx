@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Play, BarChart3, Package, TrendingUp, Shield } from 'lucide-react';
+import { ArrowRight, BarChart3, Package, TrendingUp, Shield } from 'lucide-react';
 
 const floatingIcons = [
   { Icon: BarChart3, position: 'top-20 left-[10%]', delay: 0 },

@@ -32,26 +32,6 @@ offline_queue: '++queue_id,entity_type,operation,entity_id,store_id,status,prior
   metadata: 'key'
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ==================== HELPER METHODS ====================
 
 db.getLastSyncTime = async (storeId) => {

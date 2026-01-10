@@ -59,7 +59,7 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://sellyticbe.up.railway.app/forgot-password', {
+      const response = await fetch('https://sellytics-be.vercel.app/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

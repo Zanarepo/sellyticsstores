@@ -35,7 +35,7 @@ export const createOfflineSale = async (
     _client_ref: clientRef,
     _offline_status: 'pending',
     _synced: false,
-     server_id: null,
+    server_id: null,
     _sync_attempts: 0,
     client_sale_group_ref: saleGroupOfflineId || null,
     sold_at: sanitizedData.sold_at || timestamp(),
@@ -279,9 +279,9 @@ export const markSaleSynced = async (offlineId, serverId) => {
       await db.offline_queue
         .where('client_ref')
         .equals(clientRef)
-        .modify({ 
-          status: 'synced', 
-          updated_at: new Date().toISOString() 
+        .modify({
+          status: 'synced',
+          updated_at: new Date().toISOString()
         });
     }
   }
@@ -321,13 +321,13 @@ export const markQueueItemFailed = async (clientRef, reason) => {
 export const checkDeviceSold = async (deviceId, storeId) => {
   const sid = Number(storeId);
   if (isNaN(sid) || !deviceId) return false;
-  
+
   const normalized = deviceId.trim().toLowerCase();
   const sales = await db.dynamic_sales
     .where('store_id')
     .equals(sid)
     .toArray();
-    
+
   return sales.some(s => {
     const ids = s.device_id
       ?.split(',')

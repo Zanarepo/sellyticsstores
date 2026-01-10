@@ -11,7 +11,7 @@ import { getIdentity } from '../services/identityService';
 
 export default function useDataLoader() {
   const { currentStoreId, isValid } = getIdentity();
-  
+
   const [products, setProducts] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -21,110 +21,110 @@ export default function useDataLoader() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-const loadData = useCallback(async () => {
-  if (!isValid) {
-    setError('Invalid store ID');
-    setIsLoading(false);
-    return;
-  }
-
-  setIsLoading(true);
-  setError(null);
-
-  try {
-    const isOnline = navigator.onLine;
-
-    if (isOnline) {
-      // 1. Fetch all data from Supabase first
-      const [
-        productsData,
-        inventoryData,
-        customersData,
-        salesData,
-        ownerStatus
-      ] = await Promise.all([
-        salesService.getProducts(),
-        salesService.getInventory(),
-        salesService.getCustomers(),
-        salesService.getSales(),
-        salesService.checkIsOwner()
-      ]);
-
-      // 2. Now cache everything (including sales!)
-      await Promise.all([
-        offlineCache.cacheProducts(productsData, currentStoreId),
-        offlineCache.cacheInventories(inventoryData, currentStoreId),
-        offlineCache.cacheCustomers(customersData, currentStoreId),
-        offlineCache.cacheSales(salesData, currentStoreId)  // ← Now in correct order
-      ]);
-
-      // 3. Update state
-      setProducts(productsData);
-      setInventory(inventoryData);
-      setCustomers(customersData);
-      setSales(salesData);
-      setIsOwner(ownerStatus);
-    } else {
-      // Offline: load from local cache
-      const [
-        cachedProducts,
-        cachedInventory,
-        cachedCustomers,
-        cachedSales
-      ] = await Promise.all([
-        offlineCache.getAllProducts(currentStoreId),
-        offlineCache.getAllInventory(currentStoreId),
-        offlineCache.getAllCustomers(currentStoreId),
-        offlineCache.getAllSales(currentStoreId)
-      ]);
-
-      const ownerStatus = await offlineCache.isStoreOwner(
-        currentStoreId,
-        getIdentity().currentUserEmail
-      );
-
-      setProducts(cachedProducts);
-      setInventory(cachedInventory);
-      setCustomers(cachedCustomers);
-      setSales(cachedSales);
-      setIsOwner(ownerStatus);
+  const loadData = useCallback(async () => {
+    if (!isValid) {
+      setError('Invalid store ID');
+      setIsLoading(false);
+      return;
     }
 
-    // Always load pending sales (offline-created but not synced)
-    const pending = await offlineCache.getPendingSales(currentStoreId);
-    setPendingSales(pending);
+    setIsLoading(true);
+    setError(null);
 
-  } catch (err) {
-    console.error('Failed to load data:', err);
-    setError(err.message);
-
-    // Fallback: try loading from cache even if online failed
     try {
-      const [
-        cachedProducts,
-        cachedInventory,
-        cachedCustomers,
-        cachedSales
-      ] = await Promise.all([
-        offlineCache.getAllProducts(currentStoreId),
-        offlineCache.getAllInventory(currentStoreId),
-        offlineCache.getAllCustomers(currentStoreId),
-        offlineCache.getAllSales(currentStoreId)
-      ]);
+      const isOnline = navigator.onLine;
 
-      setProducts(cachedProducts);
-      setInventory(cachedInventory);
-      setCustomers(cachedCustomers);
-      setSales(cachedSales);
+      if (isOnline) {
+        // 1. Fetch all data from Supabase first
+        const [
+          productsData,
+          inventoryData,
+          customersData,
+          salesData,
+          ownerStatus
+        ] = await Promise.all([
+          salesService.getProducts(),
+          salesService.getInventory(),
+          salesService.getCustomers(),
+          salesService.getSales(),
+          salesService.checkIsOwner()
+        ]);
 
-      toast.info('Loaded from offline cache');
-    } catch (cacheErr) {
-      console.error('Cache fallback failed:', cacheErr);
+        // 2. Now cache everything (including sales!)
+        await Promise.all([
+          offlineCache.cacheProducts(productsData, currentStoreId),
+          offlineCache.cacheInventories(inventoryData, currentStoreId),
+          offlineCache.cacheCustomers(customersData, currentStoreId),
+          offlineCache.cacheSales(salesData, currentStoreId)  // ← Now in correct order
+        ]);
+
+        // 3. Update state
+        setProducts(productsData);
+        setInventory(inventoryData);
+        setCustomers(customersData);
+        setSales(salesData);
+        setIsOwner(ownerStatus);
+      } else {
+        // Offline: load from local cache
+        const [
+          cachedProducts,
+          cachedInventory,
+          cachedCustomers,
+          cachedSales
+        ] = await Promise.all([
+          offlineCache.getAllProducts(currentStoreId),
+          offlineCache.getAllInventory(currentStoreId),
+          offlineCache.getAllCustomers(currentStoreId),
+          offlineCache.getAllSales(currentStoreId)
+        ]);
+
+        const ownerStatus = await offlineCache.isStoreOwner(
+          currentStoreId,
+          getIdentity().currentUserEmail
+        );
+
+        setProducts(cachedProducts);
+        setInventory(cachedInventory);
+        setCustomers(cachedCustomers);
+        setSales(cachedSales);
+        setIsOwner(ownerStatus);
+      }
+
+      // Always load pending sales (offline-created but not synced)
+      const pending = await offlineCache.getPendingSales(currentStoreId);
+      setPendingSales(pending);
+
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError(err.message);
+
+      // Fallback: try loading from cache even if online failed
+      try {
+        const [
+          cachedProducts,
+          cachedInventory,
+          cachedCustomers,
+          cachedSales
+        ] = await Promise.all([
+          offlineCache.getAllProducts(currentStoreId),
+          offlineCache.getAllInventory(currentStoreId),
+          offlineCache.getAllCustomers(currentStoreId),
+          offlineCache.getAllSales(currentStoreId)
+        ]);
+
+        setProducts(cachedProducts);
+        setInventory(cachedInventory);
+        setCustomers(cachedCustomers);
+        setSales(cachedSales);
+
+        toast.info('Loaded from offline cache');
+      } catch (cacheErr) {
+        console.error('Cache fallback failed:', cacheErr);
+      }
+    } finally {
+      setIsLoading(false);
     }
-  } finally {
-    setIsLoading(false);
-  }
-}, [currentStoreId, isValid]);
+  }, [currentStoreId, isValid]);
 
 
   // Refresh data
@@ -135,39 +135,39 @@ const loadData = useCallback(async () => {
   }, [loadData]);
 
 
-const refreshSales = useCallback(async () => {
-  if (!isValid) return;
+  const refreshSales = useCallback(async () => {
+    if (!isValid) return;
 
-  try {
-    let currentSales = [];
+    try {
+      let currentSales = [];
 
-    if (navigator.onLine) {
-      // Re-fetch fresh from Supabase
-      const freshSales = await salesService.getSales();
-      
-      // IMPORTANT: Re-cache the fresh sales locally (updates edited ones)
-      await offlineCache.cacheSales(freshSales, currentStoreId);
-      
-      currentSales = freshSales;
-    } else {
-      // Offline: load all from local DB
-      currentSales = await offlineCache.getAllSales(currentStoreId);
+      if (navigator.onLine) {
+        // Re-fetch fresh from Supabase
+        const freshSales = await salesService.getSales();
+
+        // IMPORTANT: Re-cache the fresh sales locally (updates edited ones)
+        await offlineCache.cacheSales(freshSales, currentStoreId);
+
+        currentSales = freshSales;
+      } else {
+        // Offline: load all from local DB
+        currentSales = await offlineCache.getAllSales(currentStoreId);
+      }
+
+      // Always get latest pending (unsynced creates/edits)
+      const pending = await offlineCache.getPendingSales(currentStoreId);
+
+      // Merge: synced (or fresh) + pending
+      const merged = [...currentSales, ...pending];
+
+      setSales(merged);
+      setPendingSales(pending);
+
+    } catch (err) {
+      console.error('Failed to refresh sales:', err);
+      toast.error('Failed to update sales list');
     }
-
-    // Always get latest pending (unsynced creates/edits)
-    const pending = await offlineCache.getPendingSales(currentStoreId);
-
-    // Merge: synced (or fresh) + pending
-    const merged = [...currentSales, ...pending];
-
-    setSales(merged);
-    setPendingSales(pending);
-
-  } catch (err) {
-    console.error('Failed to refresh sales:', err);
-    toast.error('Failed to update sales list');
-  }
-}, [currentStoreId, isValid]);
+  }, [currentStoreId, isValid]);
 
 
 
@@ -203,19 +203,19 @@ const refreshSales = useCallback(async () => {
   const getProductByBarcode = useCallback((barcode) => {
     if (!barcode) return null;
     const normalized = barcode.trim().toLowerCase();
-    
+
     // Check device_id
-    let match = products.find(p => 
+    let match = products.find(p =>
       p.device_id?.trim().toLowerCase() === normalized
     );
     if (match) return match;
-    
+
     // Check IMEI list
     match = products.find(p => {
       const imeis = p.dynamic_product_imeis?.split(',').map(i => i.trim().toLowerCase()) || [];
       return imeis.includes(normalized);
     });
-    
+
     return match || null;
   }, [products]);
 
@@ -244,19 +244,19 @@ const refreshSales = useCallback(async () => {
     isOwner,
     isLoading,
     error,
-    
+
     // Actions
     refreshData,
     refreshSales,
     refreshInventory,
     loadData,
-    
+
     // Helpers
     getProductById,
     getProductByBarcode,
     getInventoryForProduct,
     getCustomerById,
-    
+
     // Setters for external updates
     setSales,
     setPendingSales

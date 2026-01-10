@@ -9,8 +9,6 @@ import offlineCache from '../db/offlineCache';
 import { supabase } from '../../../supabaseClient';
 import { getIdentity, getCreatorMetadata } from '../services/identityService';
 
-
-
 const SYNC_INTERVAL = 30000;
 
 export default function useOfflineSync(onSyncComplete) {
@@ -23,7 +21,7 @@ export default function useOfflineSync(onSyncComplete) {
   const [queueCount, setQueueCount] = useState(0);
   const [syncError, setSyncError] = useState(null);
   const [lastSync, setLastSync] = useState(null);
-const [pendingSales, setPendingSales] = useState([]);
+  const [pendingSales, setPendingSales] = useState([]);
   const syncInProgress = useRef(false);
   const saleGroupMapRef = useRef({});
 
@@ -32,16 +30,16 @@ const [pendingSales, setPendingSales] = useState([]);
   // -------------------------
 
 
-useEffect(() => {
-  if (!currentStoreId) return;
+  useEffect(() => {
+    if (!currentStoreId) return;
 
-  const fetchPendingSales = async () => {
-    const sales = await offlineCache.getPendingSales(currentStoreId); // ← correct one
-    setPendingSales(sales);
-  };
+    const fetchPendingSales = async () => {
+      const sales = await offlineCache.getPendingSales(currentStoreId); // ← correct one
+      setPendingSales(sales);
+    };
 
-  fetchPendingSales();
-}, [currentStoreId]);
+    fetchPendingSales();
+  }, [currentStoreId]);
 
 
 
@@ -68,17 +66,17 @@ useEffect(() => {
   // Update queue count
   // -------------------------
 
-const updateQueueCount = useCallback(async () => {
-  if (!currentStoreId) return;
-  const count = await offlineCache.getPendingSalesCount(currentStoreId);
-  setQueueCount(count);
-}, [currentStoreId]); // -------------------------
+  const updateQueueCount = useCallback(async () => {
+    if (!currentStoreId) return;
+    const count = await offlineCache.getPendingSalesCount(currentStoreId);
+    setQueueCount(count);
+  }, [currentStoreId]); // -------------------------
   // Sync single queue item
   // -------------------------
- 
 
-  
- 
+
+
+
   const syncItem = useCallback(
     async (item) => {
       const { entity_type, operation, data, queue_id, client_ref } = item;
@@ -94,11 +92,11 @@ const updateQueueCount = useCallback(async () => {
             .eq('created_by_email', metadata.created_by_email)
             .limit(1);
 
-       if (existing?.length > 0) {
-  await offlineCache.markQueueItemSynced(queue_id);
-  await offlineCache.markSaleSynced(data._offline_id, existing[0].id);
-  return { success: true, skipped: true };
-}
+          if (existing?.length > 0) {
+            await offlineCache.markQueueItemSynced(queue_id);
+            await offlineCache.markSaleSynced(data._offline_id, existing[0].id);
+            return { success: true, skipped: true };
+          }
         }
 
         // --- Create sale group ---
@@ -156,40 +154,40 @@ const updateQueueCount = useCallback(async () => {
           if (error) throw error;
 
           // Update inventory
-     
+
 
           await offlineCache.markSaleSynced(data._offline_id, result.id);
           await offlineCache.markQueueItemSynced(queue_id);
           return { success: true, result };
         }
-if (entity_type === 'dynamic_sales' && operation === 'update') {
-  const cleanData = { ...data };
+        if (entity_type === 'dynamic_sales' && operation === 'update') {
+          const cleanData = { ...data };
 
-  delete cleanData._offline_status;
-  delete cleanData._synced;
-  delete cleanData._offline_id;
-  delete cleanData._client_ref;
-  delete cleanData.client_sale_group_ref;
+          delete cleanData._offline_status;
+          delete cleanData._synced;
+          delete cleanData._offline_id;
+          delete cleanData._client_ref;
+          delete cleanData.client_sale_group_ref;
 
-  cleanData.updated_at = new Date().toISOString();
+          cleanData.updated_at = new Date().toISOString();
 
-  const { data: onlineData, error } = await supabase
-    .from('dynamic_sales')
-    .update(cleanData)
-    .eq('id', item.entity_id)
-    .select()
-    .single();
+          const { data: onlineData, error } = await supabase
+            .from('dynamic_sales')
+            .update(cleanData)
+            .eq('id', item.entity_id)
+            .select()
+            .single();
 
-  if (error) throw error;
+          if (error) throw error;
 
- await offlineCache.markSaleSynced(data._offline_id, item.entity_id);
-  await offlineCache.markQueueItemSynced(item.client_ref); // use client_ref
+          await offlineCache.markSaleSynced(data._offline_id, item.entity_id);
+          await offlineCache.markQueueItemSynced(item.client_ref); // use client_ref
 
-  return { success: true, result: onlineData };
-}
+          return { success: true, result: onlineData };
+        }
 
 
-        
+
         // --- Update inventory ---
         if (entity_type === 'dynamic_inventory' && operation === 'update') {
           const { error } = await supabase
@@ -220,71 +218,71 @@ if (entity_type === 'dynamic_sales' && operation === 'update') {
 
 
   const syncAll = useCallback(async () => {
-  if (!isOnline || syncInProgress.current || syncPaused || !currentStoreId) {
-    return { synced: 0, failed: 0 };
-  }
-
-  syncInProgress.current = true;
-  setIsSyncing(true);
-  setSyncError(null);
-
-  try {
-    const items = await offlineCache.getPendingQueueItems(currentStoreId);
-
-    if (!items?.length) {
+    if (!isOnline || syncInProgress.current || syncPaused || !currentStoreId) {
       return { synced: 0, failed: 0 };
     }
 
-    setSyncProgress({ current: 0, total: items.length });
+    syncInProgress.current = true;
+    setIsSyncing(true);
+    setSyncError(null);
 
-    let synced = 0;
-    let failed = 0;
+    try {
+      const items = await offlineCache.getPendingQueueItems(currentStoreId);
 
-    for (let i = 0; i < items.length; i++) {
-      if (syncPaused) break;
-      setSyncProgress({ current: i + 1, total: items.length });
-
-      const result = await syncItem(items[i]);
-
-      // Treat success or skipped (e.g. duplicate prevention) as synced
-      if (result.success || result.skipped) {
-        synced++;
-      } else {
-        failed++;
+      if (!items?.length) {
+        return { synced: 0, failed: 0 };
       }
+
+      setSyncProgress({ current: 0, total: items.length });
+
+      let synced = 0;
+      let failed = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        if (syncPaused) break;
+        setSyncProgress({ current: i + 1, total: items.length });
+
+        const result = await syncItem(items[i]);
+
+        // Treat success or skipped (e.g. duplicate prevention) as synced
+        if (result.success || result.skipped) {
+          synced++;
+        } else {
+          failed++;
+        }
+      }
+
+
+
+
+      setLastSync(new Date());
+      await updateQueueCount();
+
+      if (synced > 0) {
+        toast.success(`Synced successfully`, { icon: '✅' });
+      }
+
+      if (failed > 0) {
+        console.warn(`Sync completed with ${failed} minor issue(s) — sale data is still safe`);
+      }
+
+      // ALWAYS refresh UI after sync attempt — ensures list is current
+      onSyncComplete?.({ synced, failed });
+
+      return { synced, failed };
+
+
+    } catch (error) {
+      console.error('Sync error:', error);
+      setSyncError(error.message);
+      toast.error('Sync failed — will retry later');
+      return { synced: 0, failed: 0 };
+    } finally {
+      setIsSyncing(false);
+      syncInProgress.current = false;
+      setSyncProgress({ current: 0, total: 0 });
     }
-
-
-
-
-       setLastSync(new Date());
-    await updateQueueCount();
-
-    if (synced > 0) {
-      toast.success(`Synced successfully`, { icon: '✅' });
-    }
-
-    if (failed > 0) {
-      console.warn(`Sync completed with ${failed} minor issue(s) — sale data is still safe`);
-    }
-
-    // ALWAYS refresh UI after sync attempt — ensures list is current
-    onSyncComplete?.({ synced, failed });
-
-    return { synced, failed };
-
-
-  } catch (error) {
-    console.error('Sync error:', error);
-    setSyncError(error.message);
-    toast.error('Sync failed — will retry later');
-    return { synced: 0, failed: 0 };
-  } finally {
-    setIsSyncing(false);
-    syncInProgress.current = false;
-    setSyncProgress({ current: 0, total: 0 });
-  }
-}, [isOnline, syncPaused, currentStoreId, syncItem, onSyncComplete, updateQueueCount]);
+  }, [isOnline, syncPaused, currentStoreId, syncItem, onSyncComplete, updateQueueCount]);
 
 
 

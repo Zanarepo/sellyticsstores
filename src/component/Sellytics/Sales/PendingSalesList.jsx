@@ -4,7 +4,7 @@
  * @version 1.0.0
  */
 import React from 'react';
-import { 
+import {
   Cloud, CloudOff, RefreshCw, Pause, Play, Trash2,
   Package, Clock, Edit2, AlertCircle, CheckCircle,
 
@@ -184,7 +184,7 @@ export default function PendingSalesList({
                       <Clock className="w-3 h-3" />
                       {formatDate(sale.sold_at || sale.created_at)}
                     </div>
-                    
+
                     {/* Sync Status */}
                     <div className="flex items-center gap-1">
                       {sale._offline_status === 'failed' ? (
@@ -223,7 +223,7 @@ export default function PendingSalesList({
                   <div className="text-right">
                     <div className="font-bold text-emerald-600 dark:text-emerald-400">
                       {formatPrice(
-                        sale.lines 
+                        sale.lines
                           ? sale.lines.reduce((sum, l) => sum + (l.quantity * l.unit_price), 0)
                           : (sale.amount || sale.quantity * sale.unit_price || 0)
                       )}
@@ -235,37 +235,37 @@ export default function PendingSalesList({
 
                   {/* Actions Dropdown */}
                   {!sale._synced && (
-               <CustomDropdown>
-    {({ close }) => (
-      <>
-        <DropdownItem
-          icon={Edit2}
-          onClick={() => {
-            onEditSale(sale);
-            close();
-          }}
-        >
-          Edit Sale
-        </DropdownItem>
+                    <CustomDropdown>
+                      {({ close }) => (
+                        <>
+                          <DropdownItem
+                            icon={Edit2}
+                            onClick={() => {
+                              onEditSale(sale);
+                              close();
+                            }}
+                          >
+                            Edit Sale
+                          </DropdownItem>
 
-        <DropdownSeparator />
+                          <DropdownSeparator />
 
-        {/* Delete option — disabled when offline */}
-        <DropdownItem
-          icon={Trash2}
-          variant="danger"
-          onClick={() => {
-            if (window.confirm('Delete this pending sale?')) {
-              onDeleteSale(sale.id);
-            }
-            close();
-          }}
-          disabled={!isOnline}  // ← THIS LINE DISABLES DELETE WHEN OFFLINE
-          className={!isOnline ? 'opacity-50 cursor-not-allowed' : ''} // Optional: visual feedback
-        >
-          {isOnline ? 'Delete Sale' : 'Delete Sale (offline - disabled)'}
-        </DropdownItem>
-      </>
+                          {/* Delete option — disabled when offline */}
+                          <DropdownItem
+                            icon={Trash2}
+                            variant="danger"
+                            onClick={() => {
+                              if (window.confirm('Delete this pending sale?')) {
+                                onDeleteSale(sale.id);
+                              }
+                              close();
+                            }}
+                            disabled={!isOnline}  // ← THIS LINE DISABLES DELETE WHEN OFFLINE
+                            className={!isOnline ? 'opacity-50 cursor-not-allowed' : ''} // Optional: visual feedback
+                          >
+                            {isOnline ? 'Delete Sale' : 'Delete Sale (offline - disabled)'}
+                          </DropdownItem>
+                        </>
                       )}
                     </CustomDropdown>
                   )}
